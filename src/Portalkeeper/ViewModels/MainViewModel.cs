@@ -183,8 +183,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             new PortalkeeperSettings
             {
                 ClientPath = client.DirectoryPath
-                _ = LoadAddonsAsync();
             });
+            
+            _ = LoadAddonsAsync();
     }
 
     private void LoadSavedClient()
