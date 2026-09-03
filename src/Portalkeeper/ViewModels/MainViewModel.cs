@@ -149,13 +149,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             : "LOCATE CLIENT";
 
     // ---------------------------------------------------------
-    // Addons
-    // ---------------------------------------------------------
-
-    public string AddonStatus =>
-        "No addon manifest loaded.";
-
-    // ---------------------------------------------------------
     // Launch readiness
     // ---------------------------------------------------------
 
