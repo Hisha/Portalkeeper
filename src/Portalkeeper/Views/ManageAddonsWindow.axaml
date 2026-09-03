@@ -147,7 +147,7 @@
                                     Grid.Column="0"
                                     Grid.ColumnSpan="3"
                                     Margin="0,5,0,0"
-                                    Text="{Binding VersionText, StringFormat='Version {0}'}"
+                                    Text="{Binding VersionText}"
                                     Foreground="#81768D"
                                     FontSize="11" />
 

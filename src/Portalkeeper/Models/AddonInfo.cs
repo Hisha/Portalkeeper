@@ -1,3 +1,5 @@
+using Portalkeeper.Services;
+
 namespace Portalkeeper.Models;
 
 public sealed class AddonInfo
@@ -10,6 +12,27 @@ public sealed class AddonInfo
 
     public string InstalledVersion { get; init; } = string.Empty;
 
+    public bool HasKnownInstalledVersion =>
+        IsInstalled &&
+        !string.IsNullOrWhiteSpace(InstalledVersion);
+
+    public bool HasAvailableVersion =>
+        !string.IsNullOrWhiteSpace(Definition.Version);
+
+    public bool IsUpdateAvailable =>
+        HasKnownInstalledVersion &&
+        HasAvailableVersion &&
+        AddonVersionComparer.Compare(
+            InstalledVersion,
+            Definition.Version) < 0;
+
+    public bool IsNewerThanManifest =>
+        HasKnownInstalledVersion &&
+        HasAvailableVersion &&
+        AddonVersionComparer.Compare(
+            InstalledVersion,
+            Definition.Version) > 0;
+
     public string RequirementText =>
         Definition.Required
             ? "Required"
@@ -18,17 +41,39 @@ public sealed class AddonInfo
                 : "Optional";
 
     public string StatusText =>
-        IsInstalled
-            ? "Installed"
-            : "Missing";
+        !IsInstalled
+            ? "Missing"
+            : IsUpdateAvailable
+                ? "Update Available"
+                : IsNewerThanManifest
+                    ? "Newer"
+                    : "Current";
 
     public string StatusSymbol =>
-        IsInstalled
-            ? "✓"
-            : "○";
+        !IsInstalled
+            ? "○"
+            : IsUpdateAvailable
+                ? "↑"
+                : "✓";
 
-    public string VersionText =>
-        string.IsNullOrWhiteSpace(InstalledVersion)
-            ? Definition.Version
-            : InstalledVersion;
+    public string VersionText
+    {
+        get
+        {
+            if (!IsInstalled)
+                return HasAvailableVersion
+                    ? $"Available: {Definition.Version}"
+                    : "Not installed";
+
+            if (!HasKnownInstalledVersion)
+                return HasAvailableVersion
+                    ? $"Installed: unknown   Available: {Definition.Version}"
+                    : "Installed version: unknown";
+
+            if (IsUpdateAvailable || IsNewerThanManifest)
+                return $"Installed: {InstalledVersion}   Available: {Definition.Version}";
+
+            return $"Installed: {InstalledVersion}";
+        }
+    }
 }

@@ -54,7 +54,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     _addonsLoaded &&
     _addons.All(addon =>
         !addon.Definition.Required ||
-        addon.IsInstalled);
+        (addon.IsInstalled && !addon.IsUpdateAvailable));
 	
 	public string AddonStatusSymbol =>
     AddonsReady
@@ -405,12 +405,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	            _addons.Count(addon =>
 	                addon.Definition.Required &&
 	                !addon.IsInstalled);
+
+	        var updatesAvailable =
+	            _addons.Count(addon => addon.IsUpdateAvailable);
+
+	        var requiredUpdates =
+	            _addons.Count(addon =>
+	                addon.Definition.Required &&
+	                addon.IsUpdateAvailable);
 	
 	        if (requiredMissing > 0)
 	        {
 	            _addonStatus =
 	                $"{installed}/{_addons.Count} managed addons installed; " +
 	                $"{requiredMissing} required addon(s) missing.";
+	        }
+	        else if (requiredUpdates > 0)
+	        {
+	            _addonStatus =
+	                $"{requiredUpdates} required addon update(s) available.";
+	        }
+	        else if (updatesAvailable > 0)
+	        {
+	            _addonStatus =
+	                $"{updatesAvailable} recommended/optional addon update(s) available.";
 	        }
 	        else if (missing > 0)
 	        {
@@ -421,7 +439,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	        else
 	        {
 	            _addonStatus =
-	                $"All {_addons.Count} managed addons are installed.";
+	                $"All {_addons.Count} managed addons are current.";
 	        }
 	
 	        _addonsLoaded = true;
