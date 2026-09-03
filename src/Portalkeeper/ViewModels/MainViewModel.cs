@@ -1,5 +1,7 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.IO;
 using Portalkeeper.Models;
 using Portalkeeper.Services;
 
@@ -9,7 +11,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
+    private readonly RealmConfigurationService _realmConfigurationService;
 
+    private RealmInfo? _realmInfo;
     private string _clientPath = "No client installation configured.";
     private string _clientStatus = "World of Warcraft 3.3.5a client required.";
     private bool _clientValid;
@@ -17,14 +21,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public MainViewModel()
     {
         _clientService = new ClientService();
-        _settingsService = new SettingsService();
-
-        LoadSavedClient();
+	    _settingsService = new SettingsService();
+	    _realmConfigurationService = new RealmConfigurationService();
+	
+	    LoadSavedClient();
+	    LoadRealmConfiguration();
     }
 
-    public string RealmName => "No realm configuration loaded";
+    public string RealmName =>
+    _realmInfo?.IsConfigured == true
+        ? _realmInfo.Name
+        : "No realm configuration loaded";
 
-    public string RealmStatus => "Realm configuration will be added next.";
+	public string RealmStatus =>
+    _realmInfo?.IsConfigured == true
+        ? $"Realm address configured: {_realmInfo.Address}"
+        : "No realm configuration available.";
+
+	public bool RealmConfigured =>
+    _realmInfo?.IsConfigured == true;
+
+	public string RealmStatusSymbol =>
+    RealmConfigured
+        ? "● Ready"
+        : "● Not Configured";
 
     public string AddonStatus => "No addon manifest loaded.";
 
@@ -79,7 +99,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ClientValid ? "● Ready" : "● Not Ready";
 
     public bool CanEnterRealm =>
-        ClientValid;
+        ClientValid && RealmConfigured;
 
     public void SetClientDirectory(string directoryPath)
     {
@@ -98,6 +118,46 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ClientPath = client.DirectoryPath
             });
     }
+
+	private void LoadRealmConfiguration()
+	{
+	    var candidates = new[]
+	    {
+	        Path.Combine(
+	            Directory.GetCurrentDirectory(),
+	            "eitrigg.conf"),
+	
+	        Path.Combine(
+	            AppContext.BaseDirectory,
+	            "eitrigg.conf")
+	    };
+	
+	    foreach (var candidate in candidates)
+	    {
+	        if (!File.Exists(candidate))
+	        {
+	            continue;
+	        }
+	
+	        try
+	        {
+	            _realmInfo =
+	                _realmConfigurationService.Load(candidate);
+	
+	            OnPropertyChanged(nameof(RealmName));
+	            OnPropertyChanged(nameof(RealmStatus));
+	            OnPropertyChanged(nameof(RealmConfigured));
+	            OnPropertyChanged(nameof(RealmStatusSymbol));
+	            OnPropertyChanged(nameof(CanEnterRealm));
+	
+	            return;
+	        }
+	        catch
+	        {
+	            // We'll add proper logging/error reporting later.
+	        }
+	    }
+	}
 
     private void LoadSavedClient()
     {

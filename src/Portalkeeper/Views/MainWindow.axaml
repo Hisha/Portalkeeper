@@ -129,7 +129,7 @@
 
                         <TextBlock
                             Grid.Column="1"
-                            Text="● Not Configured"
+                            Text="{Binding RealmStatusSymbol}"
                             Foreground="#B8A6CC"
                             VerticalAlignment="Center" />
 
