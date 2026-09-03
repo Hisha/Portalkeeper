@@ -14,7 +14,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _clientStatus = "World of Warcraft 3.3.5a client required.";
     private bool _clientValid;
 
-    public MainWindowViewModel()
+    public MainViewModel()
     {
         _clientService = new ClientService();
         _settingsService = new SettingsService();
