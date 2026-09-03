@@ -1,0 +1,45 @@
+{
+  "manifestVersion": 1,
+  "addons": [
+    {
+      "id": "unifiedbags335",
+      "name": "UnifiedBags335",
+      "folder": "UnifiedBags335",
+      "version": "1.0.0",
+      "required": true,
+      "recommended": false,
+      "downloadUrl": "",
+      "sha256": ""
+    },
+    {
+      "id": "bankreagentsui",
+      "name": "BankReagentsUI",
+      "folder": "BankReagentsUI",
+      "version": "1.0.0",
+      "required": true,
+      "recommended": false,
+      "downloadUrl": "",
+      "sha256": ""
+    },
+    {
+      "id": "huntsui",
+      "name": "HuntsUI",
+      "folder": "HuntsUI",
+      "version": "1.0.0",
+      "required": false,
+      "recommended": true,
+      "downloadUrl": "",
+      "sha256": ""
+    },
+    {
+      "id": "autotalentsui",
+      "name": "AutoTalentsUI",
+      "folder": "AutoTalentsUI",
+      "version": "1.0.0",
+      "required": false,
+      "recommended": true,
+      "downloadUrl": "",
+      "sha256": ""
+    }
+  ]
+}
