@@ -193,7 +193,7 @@
                                 HorizontalAlignment="Center" />
 
                             <Button
-                                Content="LOCATE CLIENT"
+                                Content="{Binding ClientButtonText}"
                                 Click="LocateClient_Click"
                                 Padding="18,9" />
 
