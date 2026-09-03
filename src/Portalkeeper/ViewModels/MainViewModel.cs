@@ -52,9 +52,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	        ? "● Ready"
 	        : "● Not Configured";
 	
-	private bool _addonsLoaded;
-
-    public MainViewModel()
+	public MainViewModel()
     {
         _addonManifestService =
 	    	new AddonManifestService();
