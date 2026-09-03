@@ -1,8 +1,13 @@
 # Private realm configurations
 eitrigg.conf
+*.realm.conf
+
+# Keep the public example configuration
+!config/example.realm.conf
 
 # Local Portalkeeper configuration
 portalkeeper.local.conf
+portalkeeper.local.json
 
 # .NET
 bin/
