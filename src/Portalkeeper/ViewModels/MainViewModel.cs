@@ -36,9 +36,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	private IReadOnlyList<AddonInfo> _addons =
 	    Array.Empty<AddonInfo>();
 	
+	private string _addonStatus =
+	    "No addon manifest loaded.";
+	
+	private bool _addonsLoaded;
+	
 	public string AddonStatus =>
-    _addonStatus;
-
+	    _addonStatus;
+	
 	public bool AddonsLoaded =>
 	    _addonsLoaded;
 	
