@@ -14,6 +14,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly AddonManifestService _addonManifestService;
 	private readonly AddonService _addonService;
+    private readonly AddonInstallerService _addonInstallerService;
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
     private readonly RealmConfigurationService _realmConfigurationService;
@@ -69,6 +70,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	    	new AddonManifestService();
 		_addonService =
 	    	new AddonService();
+        _addonInstallerService = new AddonInstallerService();
         _clientService = new ClientService();
         _settingsService = new SettingsService();
         _realmConfigurationService =
@@ -83,6 +85,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	{
 	    return LoadAddonsAsync();
 	}
+
+    public async Task InstallOrUpdateAddonAsync(string addonId)
+    {
+        var addon = _addons.FirstOrDefault(item =>
+            item.Definition.Id.Equals(
+                addonId,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (addon is null)
+            throw new InvalidOperationException("Addon was not found in the active manifest.");
+
+        await _addonInstallerService.InstallOrUpdateAsync(
+            ClientPath,
+            addon.Definition);
+
+        await LoadAddonsAsync();
+    }
+
+    public async Task InstallOrUpdateAllAsync()
+    {
+        var pending = _addons
+            .Where(addon => addon.CanInstallOrUpdate)
+            .ToArray();
+
+        foreach (var addon in pending)
+        {
+            await _addonInstallerService.InstallOrUpdateAsync(
+                ClientPath,
+                addon.Definition);
+        }
+
+        await LoadAddonsAsync();
+    }
 
     // ---------------------------------------------------------
     // Realm

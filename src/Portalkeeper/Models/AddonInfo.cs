@@ -56,6 +56,14 @@ public sealed class AddonInfo
                 ? "↑"
                 : "✓";
 
+    public bool CanInstallOrUpdate =>
+        (!IsInstalled || IsUpdateAvailable) &&
+        !string.IsNullOrWhiteSpace(Definition.DownloadUrl) &&
+        !string.IsNullOrWhiteSpace(Definition.Sha256);
+
+    public string ActionText =>
+        !IsInstalled ? "INSTALL" : "UPDATE";
+
     public string VersionText
     {
         get
