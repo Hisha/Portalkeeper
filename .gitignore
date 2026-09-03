@@ -1,0 +1,18 @@
+# Private realm configurations
+eitrigg.conf
+
+# Local Portalkeeper configuration
+portalkeeper.local.conf
+
+# .NET
+bin/
+obj/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
