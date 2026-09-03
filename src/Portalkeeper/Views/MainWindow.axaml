@@ -230,6 +230,11 @@
                                 Text="{Binding AddonStatus}"
                                 FontSize="13"
                                 Foreground="#90879D" />
+                                
+                            <Button
+							    Content="MANAGE ADDONS"
+							    Click="ManageAddons_Click"
+							    Padding="18,9" />
 
                         </StackPanel>
 

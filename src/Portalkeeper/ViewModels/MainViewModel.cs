@@ -33,8 +33,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
 	private AddonManifest? _addonManifest;
 
-	private IReadOnlyList<AddonInfo> _addons =
-	    Array.Empty<AddonInfo>();
+	public IReadOnlyList<AddonInfo> Addons =>
+    _addons;
 	
 	private string _addonStatus =
 	    "No addon manifest loaded.";
@@ -46,11 +46,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	
 	public bool AddonsLoaded =>
 	    _addonsLoaded;
+	    
+	public bool AddonsReady =>
+    _addonsLoaded &&
+    _addons.All(addon =>
+        !addon.Definition.Required ||
+        addon.IsInstalled);
 	
 	public string AddonStatusSymbol =>
-	    AddonsLoaded
-	        ? "● Ready"
-	        : "● Not Configured";
+    AddonsReady
+        ? "● Ready"
+        : AddonsLoaded
+            ? "● Needs Attention"
+            : "● Not Configured";
 	
 	public MainViewModel()
     {
@@ -67,6 +75,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         LoadRealmConfiguration();
         _ = LoadAddonsAsync();
     }
+    
+    public Task RefreshAddonsAsync()
+	{
+	    return LoadAddonsAsync();
+	}
 
     // ---------------------------------------------------------
     // Realm
@@ -157,7 +170,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool CanEnterRealm =>
         ClientValid &&
-        RealmConfigured;
+        RealmConfigured&&
+   		AddonsReady;
 
     // ---------------------------------------------------------
     // Client operations
@@ -428,8 +442,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 	{
 	    OnPropertyChanged(nameof(AddonStatus));
 	    OnPropertyChanged(nameof(AddonsLoaded));
+	    OnPropertyChanged(nameof(AddonsReady));
 	    OnPropertyChanged(nameof(AddonStatusSymbol));
-	    OnPropertyChanged(nameof(CanEnterRealm));
+	    OnPropertyChanged(nameof(Addons));
+	    OnPropertyChanged(nameof(CanEnterRealm));								
 	}
 
     // ---------------------------------------------------------

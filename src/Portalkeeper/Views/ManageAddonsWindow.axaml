@@ -1,0 +1,193 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Portalkeeper.ViewModels"
+    xmlns:models="using:Portalkeeper.Models"
+    x:Class="Portalkeeper.Views.ManageAddonsWindow"
+    x:DataType="vm:MainViewModel"
+    Width="720"
+    Height="520"
+    MinWidth="620"
+    MinHeight="420"
+    Title="Manage Addons"
+    WindowStartupLocation="CenterOwner"
+    Background="#15121B">
+
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#332B42" />
+            <Setter Property="Foreground" Value="#F3EFF8" />
+            <Setter Property="BorderBrush" Value="#554669" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="16,8" />
+        </Style>
+
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#493A5E" />
+            <Setter Property="BorderBrush" Value="#75608E" />
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="#292234" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- Header -->
+        <Border
+            Grid.Row="0"
+            Background="#211B2A"
+            BorderBrush="#3A3047"
+            BorderThickness="0,0,0,1"
+            Padding="22,18">
+
+            <StackPanel Spacing="4">
+
+                <TextBlock
+                    Text="MANAGE ADDONS"
+                    Foreground="#F4F0F8"
+                    FontSize="22"
+                    FontWeight="Bold" />
+
+                <TextBlock
+                    Text="Portalkeeper-managed addons for this realm"
+                    Foreground="#A99CB8"
+                    FontSize="13" />
+
+            </StackPanel>
+
+        </Border>
+
+        <!-- Overall status -->
+        <Border
+            Grid.Row="1"
+            Margin="18,18,18,8"
+            Padding="14"
+            Background="#211C29"
+            BorderBrush="#3E334C"
+            BorderThickness="1"
+            CornerRadius="6">
+
+            <Grid ColumnDefinitions="*,Auto">
+
+                <TextBlock
+                    Text="{Binding AddonStatus}"
+                    Foreground="#C8BCD4"
+                    VerticalAlignment="Center" />
+
+                <TextBlock
+                    Grid.Column="1"
+                    Text="{Binding AddonStatusSymbol}"
+                    Foreground="#C8B0E5"
+                    VerticalAlignment="Center" />
+
+            </Grid>
+
+        </Border>
+
+        <!-- Addon list -->
+        <ScrollViewer
+            Grid.Row="2"
+            Margin="18,8,18,12">
+
+            <ItemsControl ItemsSource="{Binding Addons}">
+
+                <ItemsControl.ItemTemplate>
+
+                    <DataTemplate x:DataType="models:AddonInfo">
+
+                        <Border
+                            Margin="0,0,0,8"
+                            Padding="14,12"
+                            Background="#211C29"
+                            BorderBrush="#3E334C"
+                            BorderThickness="1"
+                            CornerRadius="6">
+
+                            <Grid
+                                ColumnDefinitions="2.4*,1.2*,1.2*"
+                                RowDefinitions="Auto,Auto">
+
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Text="{Binding Definition.Name}"
+                                    Foreground="#F2EDF6"
+                                    FontWeight="SemiBold"
+                                    FontSize="14" />
+
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Text="{Binding RequirementText}"
+                                    Foreground="#B7A7C8"
+                                    HorizontalAlignment="Center" />
+
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    Spacing="6">
+
+                                    <TextBlock
+                                        Text="{Binding StatusSymbol}"
+                                        Foreground="#C5A9E5" />
+
+                                    <TextBlock
+                                        Text="{Binding StatusText}"
+                                        Foreground="#D6CADF" />
+
+                                </StackPanel>
+
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    Grid.ColumnSpan="3"
+                                    Margin="0,5,0,0"
+                                    Text="{Binding VersionText, StringFormat='Version {0}'}"
+                                    Foreground="#81768D"
+                                    FontSize="11" />
+
+                            </Grid>
+
+                        </Border>
+
+                    </DataTemplate>
+
+                </ItemsControl.ItemTemplate>
+
+            </ItemsControl>
+
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <Border
+            Grid.Row="3"
+            Background="#211B2A"
+            BorderBrush="#3A3047"
+            BorderThickness="0,1,0,0"
+            Padding="18,14">
+
+            <StackPanel
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="10">
+
+                <Button
+                    Content="CHECK AGAIN"
+                    Click="Refresh_Click" />
+
+                <Button
+                    Content="CLOSE"
+                    Click="Close_Click" />
+
+            </StackPanel>
+
+        </Border>
+
+    </Grid>
+
+</Window>

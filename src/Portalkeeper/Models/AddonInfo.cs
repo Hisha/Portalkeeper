@@ -10,8 +10,25 @@ public sealed class AddonInfo
 
     public string InstalledVersion { get; init; } = string.Empty;
 
+    public string RequirementText =>
+        Definition.Required
+            ? "Required"
+            : Definition.Recommended
+                ? "Recommended"
+                : "Optional";
+
     public string StatusText =>
         IsInstalled
             ? "Installed"
             : "Missing";
+
+    public string StatusSymbol =>
+        IsInstalled
+            ? "✓"
+            : "○";
+
+    public string VersionText =>
+        string.IsNullOrWhiteSpace(InstalledVersion)
+            ? Definition.Version
+            : InstalledVersion;
 }

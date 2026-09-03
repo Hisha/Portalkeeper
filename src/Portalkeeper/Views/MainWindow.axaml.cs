@@ -39,4 +39,21 @@ public partial class MainWindow : Window
 
         viewModel.SetClientDirectory(folder.Path.LocalPath);
     }
+    
+    private async void ManageAddons_Click(
+    object? sender,
+    RoutedEventArgs e)
+	{
+	    if (DataContext is not MainViewModel viewModel)
+	        return;
+	
+	    var window =
+	        new ManageAddonsWindow
+	        {
+	            DataContext = viewModel
+	        };
+	
+	    await window.ShowDialog(this);
+	}
+    
 }
