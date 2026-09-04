@@ -62,6 +62,8 @@ public sealed class RealmConfigurationService
         {
             Name = Get(values, "Server.Name"),
             Address = Get(values, "Server.Address"),
+            AuthPort = GetPort(values, "Server.AuthPort", 3724),
+            WorldPort = GetPort(values, "Server.WorldPort", 8085),
 
             ManifestUrl =
                 Get(values, "Updates.ManifestURL"),
@@ -81,5 +83,27 @@ public sealed class RealmConfigurationService
         return values.TryGetValue(key, out var value)
             ? value
             : string.Empty;
+    }
+
+    private static int GetPort(
+        Dictionary<string, string> values,
+        string key,
+        int defaultPort)
+    {
+        if (!values.TryGetValue(key, out var value) ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            return defaultPort;
+        }
+
+        if (!int.TryParse(value, out var port) ||
+            port < 1 ||
+            port > 65535)
+        {
+            throw new InvalidDataException(
+                $"{key} must be a valid TCP port (1-65535)." );
+        }
+
+        return port;
     }
 }

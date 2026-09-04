@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Portalkeeper.Models;
 using Portalkeeper.Services;
@@ -21,11 +22,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly SettingsService _settingsService;
     private readonly RealmConfigurationService _realmConfigurationService;
     private readonly RealmLaunchService _realmLaunchService;
+    private readonly RealmHealthService _realmHealthService;
+    private readonly SemaphoreSlim _addonRefreshLock = new(1, 1);
+    private readonly SemaphoreSlim _realmHealthLock = new(1, 1);
 
     private RealmInfo? _realmInfo;
 
     private string _realmStatus =
         "No realm configuration available.";
+
+    private RealmHealthState _realmHealthState =
+        RealmHealthState.Unknown;
 
     private string _clientPath =
         "No client installation configured.";
@@ -44,13 +51,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         "No addon manifest loaded.";
 
     private bool _addonsLoaded;
+    private bool _isCheckingAddons;
 
     private bool _isLaunching;
     private bool _isGameRunning;
     private bool _hidePortalkeeperWhileGameRuns = true;
 
     private string _launchStatus =
-        "Ready to enter realm.";
+        "Checking configuration...";
 
     public MainViewModel()
     {
@@ -63,10 +71,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _settingsService = new SettingsService();
         _realmConfigurationService = new RealmConfigurationService();
         _realmLaunchService = new RealmLaunchService();
+        _realmHealthService = new RealmHealthService();
 
         LoadSavedClient();
         LoadRealmConfiguration();
         _ = LoadAddonsAsync();
+        _ = RefreshRealmHealthAsync();
+        _ = RunRealmHealthLoopAsync();
     }
 
     public IReadOnlyList<AddonInfo> Addons =>
@@ -78,6 +89,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool AddonsLoaded =>
         _addonsLoaded;
 
+    public bool IsCheckingAddons
+    {
+        get => _isCheckingAddons;
+        private set
+        {
+            if (_isCheckingAddons == value)
+                return;
+
+            _isCheckingAddons = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AddonStatusSymbol));
+            OnPropertyChanged(nameof(CanEnterRealm));
+        }
+    }
+
     public bool AddonsReady =>
         _addonsLoaded &&
         _addons.All(addon =>
@@ -85,15 +111,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
             (addon.IsInstalled && !addon.IsUpdateAvailable));
 
     public string AddonStatusSymbol =>
-        AddonsReady
-            ? "● Ready"
-            : AddonsLoaded
-                ? "● Needs Attention"
-                : "● Not Configured";
+        IsCheckingAddons
+            ? "● Checking"
+            : AddonsReady
+                ? "● Ready"
+                : AddonsLoaded
+                    ? "● Needs Attention"
+                    : "● Not Configured";
 
-    public Task RefreshAddonsAsync()
+    public async Task RefreshAddonsAsync()
     {
-        return LoadAddonsAsync();
+        await Task.WhenAll(
+            LoadAddonsAsync(),
+            RefreshRealmHealthAsync());
     }
 
     public async Task InstallOrUpdateAddonAsync(string addonId)
@@ -228,9 +258,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _realmInfo?.IsConfigured == true;
 
     public string RealmStatusSymbol =>
-        RealmConfigured
-            ? "● Ready"
-            : "● Not Configured";
+        !RealmConfigured
+            ? "● Not Configured"
+            : _realmHealthState switch
+            {
+                RealmHealthState.Checking => "● Checking",
+                RealmHealthState.Online => "● Online",
+                RealmHealthState.AuthOnly => "● Auth Only",
+                RealmHealthState.WorldOnly => "● World Only",
+                RealmHealthState.Offline => "● Offline",
+                _ => "● Unknown"
+            };
 
     // ---------------------------------------------------------
     // Client
@@ -368,6 +406,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ClientValid &&
         RealmConfigured &&
         AddonsReady &&
+        !IsCheckingAddons &&
         !IsLaunching &&
         !IsGameRunning;
 
@@ -407,6 +446,61 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             IsLaunching = false;
             IsGameRunning = false;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Realm health
+    // ---------------------------------------------------------
+
+    public async Task RefreshRealmHealthAsync()
+    {
+        if (_realmInfo is null || !_realmInfo.IsConfigured)
+            return;
+
+        if (!await _realmHealthLock.WaitAsync(0))
+            return;
+
+        try
+        {
+            _realmHealthState = RealmHealthState.Checking;
+            _realmStatus = "Checking realm server status...";
+            NotifyRealmChanged();
+
+            var health =
+                await _realmHealthService.CheckAsync(_realmInfo);
+
+            _realmHealthState = health.State;
+            _realmStatus = health.State switch
+            {
+                RealmHealthState.Online =>
+                    "Authentication and world servers are reachable.",
+                RealmHealthState.AuthOnly =>
+                    "Authentication server is reachable; world server appears offline.",
+                RealmHealthState.WorldOnly =>
+                    "World server is reachable; authentication server appears offline.",
+                RealmHealthState.Offline =>
+                    "Realm servers appear offline or unreachable.",
+                _ =>
+                    "Realm server status could not be determined."
+            };
+
+            NotifyRealmChanged();
+        }
+        finally
+        {
+            _realmHealthLock.Release();
+        }
+    }
+
+    private async Task RunRealmHealthLoopAsync()
+    {
+        using var timer =
+            new PeriodicTimer(TimeSpan.FromSeconds(45));
+
+        while (await timer.WaitForNextTickAsync())
+        {
+            await RefreshRealmHealthAsync();
         }
     }
 
@@ -468,6 +562,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         ClientStatus = client.StatusMessage;
         ClientValid = client.IsSupportedClient;
+        UpdateLaunchReadinessStatus();
     }
 
     // ---------------------------------------------------------
@@ -482,6 +577,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (candidates.Count == 0)
         {
             _realmInfo = null;
+            _realmHealthState = RealmHealthState.Unknown;
             _realmStatus =
                 "Place a *.realm.conf file beside Portalkeeper.";
 
@@ -492,6 +588,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (candidates.Count > 1)
         {
             _realmInfo = null;
+            _realmHealthState = RealmHealthState.Unknown;
             _realmStatus =
                 $"Multiple realm configurations found ({candidates.Count}).";
 
@@ -508,6 +605,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (!realm.IsConfigured)
             {
                 _realmInfo = null;
+                _realmHealthState = RealmHealthState.Unknown;
                 _realmStatus =
                     "Realm configuration is missing required settings.";
 
@@ -516,14 +614,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             _realmInfo = realm;
+            _realmHealthState = RealmHealthState.Checking;
             _realmStatus =
-                "Realm configuration loaded.";
+                "Realm configuration loaded; checking server status...";
 
             NotifyRealmChanged();
         }
         catch (Exception ex)
         {
             _realmInfo = null;
+            _realmHealthState = RealmHealthState.Unknown;
             _realmStatus =
                 $"Unable to load realm configuration: {ex.Message}";
 
@@ -570,6 +670,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RealmConfigured));
         OnPropertyChanged(nameof(RealmStatusSymbol));
         OnPropertyChanged(nameof(CanEnterRealm));
+        UpdateLaunchReadinessStatus();
     }
 
     // ---------------------------------------------------------
@@ -578,13 +679,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task LoadAddonsAsync()
     {
+        await _addonRefreshLock.WaitAsync();
+
+        try
+        {
+            await LoadAddonsCoreAsync();
+        }
+        finally
+        {
+            _addonRefreshLock.Release();
+        }
+    }
+
+    private async Task LoadAddonsCoreAsync()
+    {
         if (!ClientValid)
         {
             _addonStatus =
                 "Configure a valid WoW client before checking addons.";
 
             _addonsLoaded = false;
+            IsCheckingAddons = false;
             NotifyAddonsChanged();
+            UpdateLaunchReadinessStatus();
             return;
         }
 
@@ -597,15 +714,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         if (string.IsNullOrWhiteSpace(manifestLocation))
-        {
-            var localManifest = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "config",
-                "addons.json");
-
-            if (File.Exists(localManifest))
-                manifestLocation = localManifest;
-        }
+            manifestLocation = FindLocalAddonManifest();
 
         if (string.IsNullOrWhiteSpace(manifestLocation))
         {
@@ -613,9 +722,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 "No addon manifest available.";
 
             _addonsLoaded = false;
+            IsCheckingAddons = false;
             NotifyAddonsChanged();
+            UpdateLaunchReadinessStatus();
             return;
         }
+
+        IsCheckingAddons = true;
+        _addonStatus = "Checking managed addons...";
+        NotifyAddonsChanged();
 
         try
         {
@@ -752,6 +867,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _addonsLoaded = false;
             NotifyAddonsChanged();
         }
+        finally
+        {
+            IsCheckingAddons = false;
+            NotifyAddonsChanged();
+            UpdateLaunchReadinessStatus();
+        }
+    }
+
+    private static string? FindLocalAddonManifest()
+    {
+        var searchDirectories = new[]
+        {
+            Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory
+        }
+        .Where(Directory.Exists)
+        .Select(Path.GetFullPath)
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var directory in searchDirectories)
+        {
+            var candidate = Path.Combine(
+                directory,
+                "config",
+                "addons.json");
+
+            if (File.Exists(candidate))
+                return Path.GetFullPath(candidate);
+        }
+
+        return null;
     }
 
     private void NotifyAddonsChanged()
@@ -762,6 +908,44 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(AddonStatusSymbol));
         OnPropertyChanged(nameof(Addons));
         OnPropertyChanged(nameof(CanEnterRealm));
+    }
+
+    private void UpdateLaunchReadinessStatus()
+    {
+        if (IsLaunching || IsGameRunning)
+            return;
+
+        if (!RealmConfigured)
+        {
+            LaunchStatus = "A realm configuration is required before launch.";
+            return;
+        }
+
+        if (!ClientValid)
+        {
+            LaunchStatus = "Locate a supported World of Warcraft 3.3.5a client.";
+            return;
+        }
+
+        if (IsCheckingAddons)
+        {
+            LaunchStatus = "Checking managed addons...";
+            return;
+        }
+
+        if (!AddonsLoaded)
+        {
+            LaunchStatus = "Addon configuration needs attention before launch.";
+            return;
+        }
+
+        if (!AddonsReady)
+        {
+            LaunchStatus = "Required addons must be installed and current before launch.";
+            return;
+        }
+
+        LaunchStatus = "Ready to enter realm.";
     }
 
     // ---------------------------------------------------------
