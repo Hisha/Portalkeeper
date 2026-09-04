@@ -51,6 +51,58 @@ public sealed class PersonalAddonService
         }
     }
 
+
+    public int ReconcileRealmManaged(
+        IReadOnlyList<AddonDefinition> realmAddons)
+    {
+        var items = Load().ToList();
+
+        if (items.Count == 0)
+            return 0;
+
+        var realmIdentities = realmAddons
+            .Where(addon => addon.IsGitHubSource)
+            .Select(addon => BuildIdentity(addon.GitUrl, addon.AddonPath))
+            .Where(identity => identity is not null)
+            .Select(identity => identity!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (realmIdentities.Count == 0)
+            return 0;
+
+        var remaining = items
+            .Where(item =>
+            {
+                var identity = BuildIdentity(item.GitUrl, item.AddonPath);
+                return identity is null || !realmIdentities.Contains(identity);
+            })
+            .ToList();
+
+        var removed = items.Count - remaining.Count;
+
+        if (removed > 0)
+            Save(remaining);
+
+        return removed;
+    }
+
+    private static string? BuildIdentity(string gitUrl, string addonPath)
+    {
+        if (!GitHubAddonSourceService.TryParseRepositoryUrl(
+                gitUrl,
+                out var owner,
+                out var repository))
+        {
+            return null;
+        }
+
+        var normalizedPath = (addonPath ?? string.Empty)
+            .Replace('\\', '/')
+            .Trim('/');
+
+        return $"{owner}/{repository}|{normalizedPath}";
+    }
+
     public void Add(PersonalAddonSource source)
     {
         var items = Load().ToList();

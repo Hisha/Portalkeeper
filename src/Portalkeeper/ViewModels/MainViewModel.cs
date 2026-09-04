@@ -630,6 +630,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var resolvedDefinitions =
                 resolvedRealmManifest.Addons.ToList();
 
+            // Realm policy always wins over a matching personal addon.
+            // Reconcile before loading personal sources so the same addon cannot
+            // appear twice or be updated independently by two management entries.
+            _personalAddonService.ReconcileRealmManaged(
+                resolvedRealmManifest.Addons);
+
             var personalSourceErrors =
                 new List<AddonInfo>();
 
