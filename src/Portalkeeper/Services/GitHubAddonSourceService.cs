@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Portalkeeper.Models;
 
@@ -81,6 +84,37 @@ public sealed class GitHubAddonSourceService
             cacheKey,
             out var cached);
 
+        try
+        {
+            return await ResolveUsingApiAsync(
+                addon,
+                owner,
+                repository,
+                cacheKey,
+                cached);
+        }
+        catch (GitHubApiRateLimitException)
+        {
+            // GitHub's unauthenticated REST API is intentionally rate limited.
+            // A brand-new Portalkeeper user has no cache yet, so falling back to
+            // Git's public smart-HTTP advertisement plus a codeload archive keeps
+            // first-run addon discovery working without requiring a GitHub token.
+            return await ResolveWithoutApiAsync(
+                addon,
+                owner,
+                repository,
+                cacheKey,
+                cached);
+        }
+    }
+
+    private async Task<AddonDefinition> ResolveUsingApiAsync(
+        AddonDefinition addon,
+        string owner,
+        string repository,
+        string cacheKey,
+        GitHubSourceCacheEntry? cached)
+    {
         var defaultBranch = cached?.DefaultBranch ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(defaultBranch))
@@ -152,7 +186,10 @@ public sealed class GitHubAddonSourceService
         }
 
         var tocPath = SelectTocPath(
-            tree.Tree,
+            tree.Tree
+                .Where(item =>
+                    item.Type.Equals("blob", StringComparison.OrdinalIgnoreCase))
+                .Select(item => item.Path),
             repository,
             addon.AddonPath);
 
@@ -168,6 +205,115 @@ public sealed class GitHubAddonSourceService
                 $"Portalkeeper found '{tocPath}' in {addon.Name}, but it does not contain '## Version:'.");
         }
 
+        return CacheAndBuildResolvedDefinition(
+            addon,
+            repository,
+            cacheKey,
+            defaultBranch,
+            commit.Sha,
+            tocPath,
+            version);
+    }
+
+    private async Task<AddonDefinition> ResolveWithoutApiAsync(
+        AddonDefinition addon,
+        string owner,
+        string repository,
+        string cacheKey,
+        GitHubSourceCacheEntry? cached)
+    {
+        var head = await GetGitHeadAsync(owner, repository);
+
+        if (cached is not null &&
+            cached.Commit.Equals(head.Commit, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(cached.Folder) &&
+            !string.IsNullOrWhiteSpace(cached.Version))
+        {
+            return BuildResolvedDefinition(
+                addon,
+                repository,
+                head.Branch,
+                head.Commit,
+                cached.AddonPath,
+                cached.Folder,
+                cached.Version);
+        }
+
+        var archiveUrl = BuildCommitArchiveUrl(addon.GitUrl, head.Commit);
+
+        using var response = await HttpClient.GetAsync(archiveUrl);
+        response.EnsureSuccessStatusCode();
+
+        await using var archiveStream =
+            await response.Content.ReadAsStreamAsync();
+        using var archive = new ZipArchive(
+            archiveStream,
+            ZipArchiveMode.Read,
+            leaveOpen: false);
+
+        var entries = archive.Entries
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+            .Select(entry => new
+            {
+                Entry = entry,
+                RelativePath = StripArchiveRoot(entry.FullName)
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.RelativePath))
+            .ToArray();
+
+        var tocPath = SelectTocPath(
+            entries.Select(item => item.RelativePath),
+            repository,
+            addon.AddonPath);
+
+        var tocEntry = entries.FirstOrDefault(item =>
+            item.RelativePath.Equals(
+                tocPath,
+                StringComparison.OrdinalIgnoreCase))?.Entry;
+
+        if (tocEntry is null)
+        {
+            throw new InvalidDataException(
+                $"Portalkeeper found '{tocPath}' in {addon.Name}, but could not read it from the repository archive.");
+        }
+
+        string tocText;
+        await using (var tocStream = tocEntry.Open())
+        using (var reader = new StreamReader(
+                   tocStream,
+                   Encoding.UTF8,
+                   detectEncodingFromByteOrderMarks: true))
+        {
+            tocText = await reader.ReadToEndAsync();
+        }
+
+        var version = ReadTocVersion(tocText);
+
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            throw new InvalidDataException(
+                $"Portalkeeper found '{tocPath}' in {addon.Name}, but it does not contain '## Version:'.");
+        }
+
+        return CacheAndBuildResolvedDefinition(
+            addon,
+            repository,
+            cacheKey,
+            head.Branch,
+            head.Commit,
+            tocPath,
+            version);
+    }
+
+    private AddonDefinition CacheAndBuildResolvedDefinition(
+        AddonDefinition addon,
+        string repository,
+        string cacheKey,
+        string branch,
+        string commit,
+        string tocPath,
+        string version)
+    {
         var addonPath = NormalizeAddonPath(
             string.IsNullOrWhiteSpace(addon.AddonPath)
                 ? GetDirectoryPart(tocPath)
@@ -179,8 +325,8 @@ public sealed class GitHubAddonSourceService
 
         _cache.Repositories[cacheKey] = new GitHubSourceCacheEntry
         {
-            DefaultBranch = defaultBranch,
-            Commit = commit.Sha,
+            DefaultBranch = branch,
+            Commit = commit,
             AddonPath = addonPath,
             Folder = folder,
             Version = version
@@ -191,11 +337,62 @@ public sealed class GitHubAddonSourceService
         return BuildResolvedDefinition(
             addon,
             repository,
-            defaultBranch,
-            commit.Sha,
+            branch,
+            commit,
             addonPath,
             folder,
             version);
+    }
+
+    private static string StripArchiveRoot(string fullName)
+    {
+        var normalized = fullName.Replace('\\', '/').Trim('/');
+        var slash = normalized.IndexOf('/');
+
+        return slash < 0
+            ? string.Empty
+            : normalized[(slash + 1)..];
+    }
+
+    private async Task<GitHeadInfo> GetGitHeadAsync(
+        string owner,
+        string repository)
+    {
+        var url =
+            $"https://github.com/{owner}/{repository}.git/info/refs?service=git-upload-pack";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Accept.Clear();
+        request.Headers.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/x-git-upload-pack-advertisement"));
+
+        using var response = await HttpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var advertisement = Encoding.UTF8.GetString(bytes);
+
+        var commitMatch = Regex.Match(
+            advertisement,
+            @"(?i)([0-9a-f]{40}) HEAD");
+        var branchMatch = Regex.Match(
+            advertisement,
+            @"symref=HEAD:refs/heads/([^\0\s]+)");
+
+        if (!commitMatch.Success)
+        {
+            throw new InvalidDataException(
+                $"GitHub did not advertise a HEAD commit for https://github.com/{owner}/{repository}.");
+        }
+
+        var branch = branchMatch.Success
+            ? branchMatch.Groups[1].Value
+            : "HEAD";
+
+        return new GitHeadInfo(
+            branch,
+            commitMatch.Groups[1].Value);
     }
 
     public static bool TryParseRepositoryUrl(
@@ -274,15 +471,14 @@ public sealed class GitHubAddonSourceService
     }
 
     private static string SelectTocPath(
-        IReadOnlyList<TreeItemResponse> tree,
+        IEnumerable<string> paths,
         string repository,
         string addonPathOverride)
     {
-        var tocFiles = tree
-            .Where(item =>
-                item.Type.Equals("blob", StringComparison.OrdinalIgnoreCase) &&
-                item.Path.EndsWith(".toc", StringComparison.OrdinalIgnoreCase))
-            .Select(item => item.Path.Replace('\\', '/'))
+        var tocFiles = paths
+            .Where(path =>
+                path.EndsWith(".toc", StringComparison.OrdinalIgnoreCase))
+            .Select(path => path.Replace('\\', '/'))
             .ToArray();
 
         if (!string.IsNullOrWhiteSpace(addonPathOverride))
@@ -432,8 +628,7 @@ public sealed class GitHubAddonSourceService
             response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining) &&
             remaining.FirstOrDefault() == "0")
         {
-            throw new InvalidOperationException(
-                "GitHub API rate limit reached. Try CHECK AGAIN later.");
+            throw new GitHubApiRateLimitException();
         }
 
         response.EnsureSuccessStatusCode();
@@ -571,6 +766,14 @@ public sealed class GitHubAddonSourceService
 
         [JsonPropertyName("type")]
         public string Type { get; init; } = string.Empty;
+    }
+
+    private sealed record GitHeadInfo(
+        string Branch,
+        string Commit);
+
+    private sealed class GitHubApiRateLimitException : Exception
+    {
     }
 
     private sealed class GitHubSourceCache

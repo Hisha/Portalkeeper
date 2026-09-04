@@ -6,14 +6,14 @@
     xmlns:vm="using:Portalkeeper.ViewModels"
     mc:Ignorable="d"
     d:DesignWidth="900"
-    d:DesignHeight="620"
+    d:DesignHeight="720"
     x:Class="Portalkeeper.Views.MainWindow"
     x:DataType="vm:MainViewModel"
     Title="Portalkeeper"
     Width="900"
-    Height="620"
+    Height="720"
     MinWidth="760"
-    MinHeight="540"
+    MinHeight="620"
     WindowStartupLocation="CenterScreen">
     
     <Window.Styles>
@@ -298,11 +298,11 @@
                     Foreground="#80788A"
                     VerticalAlignment="Center" />
 
-                <TextBlock
+                <Button
                     Grid.Column="1"
-                    Text="Settings coming soon"
-                    Foreground="#80788A"
-                    VerticalAlignment="Center" />
+                    Content="SETTINGS"
+                    Click="Settings_Click"
+                    Padding="14,6" />
 
             </Grid>
 
