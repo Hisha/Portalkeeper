@@ -120,7 +120,12 @@ public sealed class AddonInstallerService
                     backupCreated = true;
                 }
 
-                Directory.Move(
+                // preparedDirectory lives under the system temp directory, which may
+                // be on a different filesystem from the WoW client. Directory.Move()
+                // cannot cross filesystem boundaries on Unix, so copy the prepared
+                // addon into place instead. The existing install has already been
+                // moved to a backup on the client filesystem, so rollback remains safe.
+                CopyDirectory(
                     preparedDirectory,
                     destinationDirectory);
 

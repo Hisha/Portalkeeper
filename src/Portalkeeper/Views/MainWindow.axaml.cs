@@ -56,4 +56,14 @@ public partial class MainWindow : Window
 	    await window.ShowDialog(this);
 	}
     
+
+    private async void EnterRealm_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        await viewModel.EnterRealmAsync();
+    }
 }

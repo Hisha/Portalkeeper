@@ -19,6 +19,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
     private readonly RealmConfigurationService _realmConfigurationService;
+    private readonly RealmLaunchService _realmLaunchService;
 
     private RealmInfo? _realmInfo;
 
@@ -43,6 +44,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private bool _addonsLoaded;
 
+    private bool _isLaunching;
+
+    private string _launchStatus =
+        "Ready to enter realm.";
+
     public MainViewModel()
     {
         _addonManifestService = new AddonManifestService();
@@ -52,6 +58,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _clientService = new ClientService();
         _settingsService = new SettingsService();
         _realmConfigurationService = new RealmConfigurationService();
+        _realmLaunchService = new RealmLaunchService();
 
         LoadSavedClient();
         LoadRealmConfiguration();
@@ -202,10 +209,74 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // Launch readiness
     // ---------------------------------------------------------
 
+    public bool IsLaunching
+    {
+        get => _isLaunching;
+        private set
+        {
+            if (_isLaunching == value)
+                return;
+
+            _isLaunching = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(EnterRealmButtonText));
+        }
+    }
+
+    public string LaunchStatus
+    {
+        get => _launchStatus;
+        private set
+        {
+            if (_launchStatus == value)
+                return;
+
+            _launchStatus = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EnterRealmButtonText =>
+        IsLaunching
+            ? "LAUNCHING..."
+            : "ENTER REALM";
+
     public bool CanEnterRealm =>
         ClientValid &&
         RealmConfigured &&
-        AddonsReady;
+        AddonsReady &&
+        !IsLaunching;
+
+    public Task EnterRealmAsync()
+    {
+        if (!CanEnterRealm || _realmInfo is null)
+            return Task.CompletedTask;
+
+        IsLaunching = true;
+        LaunchStatus = "Preparing client...";
+
+        try
+        {
+            var result = _realmLaunchService.PrepareAndLaunch(
+                ClientPath,
+                _realmInfo);
+
+            LaunchStatus =
+                $"World of Warcraft launched ({result.Locale}).";
+        }
+        catch (Exception ex)
+        {
+            LaunchStatus =
+                $"Unable to launch World of Warcraft: {ex.Message}";
+        }
+        finally
+        {
+            IsLaunching = false;
+        }
+
+        return Task.CompletedTask;
+    }
 
     // ---------------------------------------------------------
     // Client operations
