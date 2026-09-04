@@ -121,6 +121,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task RefreshAddonsAsync()
     {
+        // CHECK AGAIN is also the user's explicit request to rescan
+        // the launcher's configuration. This makes first-run setup
+        // work without restarting Portalkeeper after a realm file is
+        // copied into place.
+        LoadRealmConfiguration();
+
         await Task.WhenAll(
             LoadAddonsAsync(),
             RefreshRealmHealthAsync());
@@ -579,7 +585,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _realmInfo = null;
             _realmHealthState = RealmHealthState.Unknown;
             _realmStatus =
-                "Place a *.realm.conf file beside Portalkeeper.";
+                "Place a *.realm.conf file in Portalkeeper's config folder, then click CHECK AGAIN.";
 
             NotifyRealmChanged();
             return;
@@ -633,12 +639,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private static List<string> FindRealmConfigurationFiles()
     {
-        var searchDirectories =
+        // Support both the historical "beside Portalkeeper" location
+        // and the much more natural config/ directory. Search relative to
+        // both the current working directory and the executable directory
+        // so packaged/desktop launches behave the same as terminal launches.
+        var roots =
             new[]
             {
                 Directory.GetCurrentDirectory(),
                 AppContext.BaseDirectory
             }
+            .Where(Directory.Exists)
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var searchDirectories = roots
+            .SelectMany(root => new[]
+            {
+                root,
+                Path.Combine(root, "config")
+            })
             .Where(Directory.Exists)
             .Select(Path.GetFullPath)
             .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -656,6 +677,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         return files
             .Select(Path.GetFullPath)
+            // The shipped template is documentation, not a selectable realm.
+            .Where(path =>
+                !Path.GetFileName(path).Equals(
+                    "example.realm.conf",
+                    StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(
                 path => path,
