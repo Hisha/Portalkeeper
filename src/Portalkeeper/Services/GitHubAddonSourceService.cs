@@ -282,7 +282,7 @@ public sealed class GitHubAddonSourceService
             .Where(item =>
                 item.Type.Equals("blob", StringComparison.OrdinalIgnoreCase) &&
                 item.Path.EndsWith(".toc", StringComparison.OrdinalIgnoreCase))
-            .Select(item => item.Path)
+            .Select(item => item.Path.Replace('\\', '/'))
             .ToArray();
 
         if (!string.IsNullOrWhiteSpace(addonPathOverride))
@@ -290,8 +290,7 @@ public sealed class GitHubAddonSourceService
             var prefix = NormalizeAddonPath(addonPathOverride);
 
             tocFiles = tocFiles
-                .Where(path =>
-                    IsUnderPath(path, prefix))
+                .Where(path => IsUnderPath(path, prefix))
                 .ToArray();
         }
 
@@ -303,6 +302,28 @@ public sealed class GitHubAddonSourceService
 
         if (tocFiles.Length == 1)
             return tocFiles[0];
+
+        // Embedded libraries frequently ship their own .toc files. If the repository
+        // also contains normal addon candidates, do not let those library metadata
+        // files make discovery look ambiguous.
+        var nonLibraryTocs = tocFiles
+            .Where(path => !IsEmbeddedLibraryToc(path))
+            .ToArray();
+
+        if (nonLibraryTocs.Length > 0)
+            tocFiles = nonLibraryTocs;
+
+        if (tocFiles.Length == 1)
+            return tocFiles[0];
+
+        // A single root-level .toc is the strongest signal for repositories whose
+        // addon itself lives at repository root (for example MultiBot-Chatless).
+        var rootTocs = tocFiles
+            .Where(path => !path.Contains('/'))
+            .ToArray();
+
+        if (rootTocs.Length == 1)
+            return rootTocs[0];
 
         var repositoryTocName = repository + ".toc";
         var exactNameMatches = tocFiles
@@ -332,6 +353,34 @@ public sealed class GitHubAddonSourceService
         throw new InvalidDataException(
             $"Multiple addon .toc files were found ({choices}). " +
             "Set addonPath in the manifest to identify the addon directory.");
+    }
+
+    private static bool IsEmbeddedLibraryToc(string path)
+    {
+        var segments = path
+            .Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // Only treat directory segments as library markers. A root addon whose name
+        // happens to contain one of these words should still be considered normally.
+        for (var index = 0; index < segments.Length - 1; index++)
+        {
+            var segment = segments[index];
+
+            if (segment.Equals("Lib", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Libs", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Library", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Libraries", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Vendor", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Vendors", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("ThirdParty", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("Third-Party", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string InferFolder(
