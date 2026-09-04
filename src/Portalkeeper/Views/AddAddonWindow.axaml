@@ -51,7 +51,7 @@
 
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                     <TextBox x:Name="GitUrlTextBox"
-                             Watermark="https://github.com/owner/repository" />
+                             PlaceholderText="https://github.com/owner/repository" />
                     <Button Grid.Column="1" Content="DISCOVER" Click="Discover_Click" />
                 </Grid>
 
