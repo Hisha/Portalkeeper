@@ -13,6 +13,46 @@ public partial class ManageAddonsWindow : Window
         InitializeComponent();
     }
 
+
+    private async void AddAddon_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        var window = new AddAddonWindow
+        {
+            DataContext = viewModel
+        };
+
+        await window.ShowDialog(this);
+    }
+
+    private async void RemovePersonalAddon_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel ||
+            sender is not Button button ||
+            button.DataContext is not AddonInfo addon)
+            return;
+
+        try
+        {
+            IsEnabled = false;
+            await viewModel.RemovePersonalAddonAsync(addon.Definition.Id);
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorAsync(ex.Message);
+        }
+        finally
+        {
+            IsEnabled = true;
+        }
+    }
+
     private async void AddonAction_Click(
         object? sender,
         RoutedEventArgs e)

@@ -57,6 +57,9 @@ public sealed class AddonDefinition
     public string SourceBranch { get; init; } = string.Empty;
 
     [JsonIgnore]
+    public bool IsPersonal { get; init; }
+
+    [JsonIgnore]
     public bool IsGitHubSource =>
         !string.IsNullOrWhiteSpace(GitUrl);
 }

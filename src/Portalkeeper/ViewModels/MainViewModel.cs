@@ -16,6 +16,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly GitHubAddonSourceService _gitHubAddonSourceService;
     private readonly AddonService _addonService;
     private readonly AddonInstallerService _addonInstallerService;
+    private readonly PersonalAddonService _personalAddonService;
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
     private readonly RealmConfigurationService _realmConfigurationService;
@@ -57,6 +58,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _gitHubAddonSourceService = new GitHubAddonSourceService();
         _addonService = new AddonService();
         _addonInstallerService = new AddonInstallerService();
+        _personalAddonService = new PersonalAddonService();
         _clientService = new ClientService();
         _settingsService = new SettingsService();
         _realmConfigurationService = new RealmConfigurationService();
@@ -127,6 +129,86 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 addon.Definition);
         }
 
+        await LoadAddonsAsync();
+    }
+
+
+    public async Task<AddonDefinition> DiscoverPersonalAddonAsync(string gitUrl)
+    {
+        if (string.IsNullOrWhiteSpace(gitUrl))
+            throw new InvalidOperationException("Enter a GitHub repository URL.");
+
+        var candidate = new AddonDefinition
+        {
+            Id = "personal-preview",
+            Name = string.Empty,
+            GitUrl = gitUrl.Trim(),
+            IsPersonal = true
+        };
+
+        var resolved = await _gitHubAddonSourceService.ResolveAsync(candidate);
+
+        if (_addons.Any(addon =>
+                addon.Definition.GitUrl.Equals(
+                    resolved.GitUrl,
+                    StringComparison.OrdinalIgnoreCase) &&
+                addon.Definition.AddonPath.Equals(
+                    resolved.AddonPath,
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "That addon is already managed by Portalkeeper.");
+        }
+
+        return resolved;
+    }
+
+    public async Task AddPersonalAddonAsync(
+        AddonDefinition discovered,
+        bool installIfMissing)
+    {
+        var source = new PersonalAddonSource
+        {
+            Id = "personal-" + Guid.NewGuid().ToString("N"),
+            GitUrl = discovered.GitUrl,
+            AddonPath = discovered.AddonPath
+        };
+
+        _personalAddonService.Add(source);
+        await LoadAddonsAsync();
+
+        if (!installIfMissing)
+            return;
+
+        var addon = _addons.FirstOrDefault(item =>
+            item.Definition.Id.Equals(
+                source.Id,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (addon is not null && !addon.IsInstalled)
+        {
+            await _addonInstallerService.InstallOrUpdateAsync(
+                ClientPath,
+                addon.Definition);
+
+            await LoadAddonsAsync();
+        }
+    }
+
+    public async Task RemovePersonalAddonAsync(string addonId)
+    {
+        var addon = _addons.FirstOrDefault(item =>
+            item.Definition.Id.Equals(
+                addonId,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (addon is null || !addon.Definition.IsPersonal)
+        {
+            throw new InvalidOperationException(
+                "Only personal addons can be removed from management.");
+        }
+
+        _personalAddonService.Remove(addon.Definition.Id);
         await LoadAddonsAsync();
     }
 
@@ -541,20 +623,68 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 await _addonManifestService.LoadAsync(
                     manifestLocation);
 
-            _addonManifest =
+            var resolvedRealmManifest =
                 await _gitHubAddonSourceService.ResolveManifestAsync(
                     rawManifest);
+
+            var resolvedDefinitions =
+                resolvedRealmManifest.Addons.ToList();
+
+            var personalSourceErrors =
+                new List<AddonInfo>();
+
+            foreach (var personal in _personalAddonService.Load())
+            {
+                var personalDefinition =
+                    new AddonDefinition
+                    {
+                        Id = personal.Id,
+                        GitUrl = personal.GitUrl,
+                        AddonPath = personal.AddonPath,
+                        IsPersonal = true
+                    };
+
+                try
+                {
+                    resolvedDefinitions.Add(
+                        await _gitHubAddonSourceService.ResolveAsync(
+                            personalDefinition));
+                }
+                catch (Exception ex)
+                {
+                    personalSourceErrors.Add(
+                        new AddonInfo
+                        {
+                            Definition = personalDefinition,
+                            DiscoveryError = ex.Message
+                        });
+                }
+            }
+
+            _addonManifest =
+                new AddonManifest
+                {
+                    ManifestVersion = resolvedRealmManifest.ManifestVersion,
+                    Addons = resolvedDefinitions
+                };
 
             _addons =
                 _addonService.InspectAddons(
                     ClientPath,
-                    _addonManifest);
+                    _addonManifest)
+                .Concat(personalSourceErrors)
+                .ToArray();
 
             var installed =
                 _addons.Count(addon => addon.IsInstalled);
 
+            var sourceErrors =
+                _addons.Count(addon => addon.IsSourceError);
+
             var missing =
-                _addons.Count - installed;
+                _addons.Count(addon =>
+                    !addon.IsSourceError &&
+                    !addon.IsInstalled);
 
             var requiredMissing =
                 _addons.Count(addon =>
@@ -583,13 +713,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             else if (updatesAvailable > 0)
             {
                 _addonStatus =
-                    $"{updatesAvailable} recommended/optional addon update(s) available.";
+                    $"{updatesAvailable} recommended/optional/personal addon update(s) available.";
+            }
+            else if (sourceErrors > 0)
+            {
+                _addonStatus =
+                    $"Realm addons ready; {sourceErrors} personal addon source(s) need attention.";
             }
             else if (missing > 0)
             {
                 _addonStatus =
                     $"{installed}/{_addons.Count} managed addons installed; " +
-                    $"{missing} optional/recommended addon(s) missing.";
+                    $"{missing} optional/recommended/personal addon(s) missing.";
             }
             else
             {

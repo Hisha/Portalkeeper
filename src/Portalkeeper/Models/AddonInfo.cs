@@ -15,6 +15,11 @@ public sealed class AddonInfo
 
     public string InstalledSourceCommit { get; init; } = string.Empty;
 
+    public string DiscoveryError { get; init; } = string.Empty;
+
+    public bool IsSourceError =>
+        !string.IsNullOrWhiteSpace(DiscoveryError);
+
     public bool HasKnownInstalledVersion =>
         IsInstalled &&
         !string.IsNullOrWhiteSpace(InstalledVersion);
@@ -51,14 +56,21 @@ public sealed class AddonInfo
             Definition.Version) > 0;
 
     public string RequirementText =>
-        Definition.Required
-            ? "Required"
-            : Definition.Recommended
-                ? "Recommended"
-                : "Optional";
+        Definition.IsPersonal
+            ? "Personal"
+            : Definition.Required
+                ? "Required"
+                : Definition.Recommended
+                    ? "Recommended"
+                    : "Optional";
+
+    public bool CanRemoveFromManagement =>
+        Definition.IsPersonal;
 
     public string StatusText =>
-        !IsInstalled
+        IsSourceError
+            ? "Source Error"
+            : !IsInstalled
             ? "Missing"
             : IsUpdateAvailable
                 ? "Update Available"
@@ -67,13 +79,16 @@ public sealed class AddonInfo
                     : "Current";
 
     public string StatusSymbol =>
-        !IsInstalled
+        IsSourceError
+            ? "!"
+            : !IsInstalled
             ? "○"
             : IsUpdateAvailable
                 ? "↑"
                 : "✓";
 
     public bool CanInstallOrUpdate =>
+        !IsSourceError &&
         (!IsInstalled || IsUpdateAvailable) &&
         (
             (Definition.IsGitHubSource &&
@@ -90,6 +105,9 @@ public sealed class AddonInfo
     {
         get
         {
+            if (IsSourceError)
+                return DiscoveryError;
+
             if (!IsInstalled)
                 return HasAvailableVersion
                     ? $"Available: {Definition.Version}"

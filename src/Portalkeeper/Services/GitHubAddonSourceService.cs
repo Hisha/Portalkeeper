@@ -268,7 +268,8 @@ public sealed class GitHubAddonSourceService
             DownloadUrl = source.DownloadUrl,
             Sha256 = source.Sha256,
             SourceCommit = commit,
-            SourceBranch = branch
+            SourceBranch = branch,
+            IsPersonal = source.IsPersonal
         };
     }
 

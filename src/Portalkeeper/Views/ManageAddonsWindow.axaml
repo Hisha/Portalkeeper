@@ -81,11 +81,16 @@
                                     <TextBlock Text="{Binding StatusText}"
                                                Foreground="#D6CADF" />
                                 </StackPanel>
-                                <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
-                                        Margin="14,0,0,0"
-                                        Content="{Binding ActionText}"
-                                        IsVisible="{Binding CanInstallOrUpdate}"
-                                        Click="AddonAction_Click" />
+                                <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
+                                            Margin="14,0,0,0" Spacing="6"
+                                            VerticalAlignment="Center">
+                                    <Button Content="{Binding ActionText}"
+                                            IsVisible="{Binding CanInstallOrUpdate}"
+                                            Click="AddonAction_Click" />
+                                    <Button Content="REMOVE"
+                                            IsVisible="{Binding CanRemoveFromManagement}"
+                                            Click="RemovePersonalAddon_Click" />
+                                </StackPanel>
                                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                                            Margin="0,5,0,0" Text="{Binding VersionText}"
                                            Foreground="#81768D" FontSize="11" />
@@ -98,11 +103,15 @@
 
         <Border Grid.Row="3" Background="#211B2A" BorderBrush="#3A3047"
                 BorderThickness="0,1,0,0" Padding="18,14">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Content="UPDATE ALL" Click="UpdateAll_Click" />
-                <Button Content="CHECK AGAIN" Click="Refresh_Click" />
-                <Button Content="CLOSE" Click="Close_Click" />
-            </StackPanel>
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Content="+ ADD ADDON" Click="AddAddon_Click" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            HorizontalAlignment="Right" Spacing="10">
+                    <Button Content="UPDATE ALL" Click="UpdateAll_Click" />
+                    <Button Content="CHECK AGAIN" Click="Refresh_Click" />
+                    <Button Content="CLOSE" Click="Close_Click" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>
