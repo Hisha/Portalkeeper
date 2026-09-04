@@ -285,11 +285,11 @@
                     Foreground="#80788A"
                     VerticalAlignment="Center" />
 
-                <TextBlock
+                <Button
                     Grid.Column="1"
-                    Text="Settings coming soon"
-                    Foreground="#80788A"
-                    VerticalAlignment="Center" />
+                    Content="SETTINGS"
+                    Click="Settings_Click"
+                    Padding="14,6" />
 
             </Grid>
 

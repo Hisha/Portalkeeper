@@ -68,6 +68,9 @@ public partial class MainWindow : Window
 
         await viewModel.EnterRealmAsync(() =>
         {
+            if (!viewModel.HidePortalkeeperWhileGameRuns)
+                return;
+
             hiddenForGame = true;
             Hide();
         });
@@ -77,5 +80,20 @@ public partial class MainWindow : Window
             Show();
             Activate();
         }
+    }
+
+    private async void Settings_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        var window = new SettingsWindow
+        {
+            DataContext = viewModel
+        };
+
+        await window.ShowDialog(this);
     }
 }

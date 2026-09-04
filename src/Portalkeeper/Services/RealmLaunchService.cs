@@ -17,6 +17,37 @@ public sealed class RealmLaunchService
         "WoW.exe"
     };
 
+    public string GetLaunchEnvironmentSummary(string clientDirectory)
+    {
+        if (OperatingSystem.IsWindows())
+            return "Native Windows launch";
+
+        if (!OperatingSystem.IsLinux())
+            return "Unsupported launch platform";
+
+        var wineExecutable = FindOnPath("wine") ?? FindOnPath("wine64");
+
+        if (wineExecutable is null)
+            return "Wine not found in PATH";
+
+        if (string.IsNullOrWhiteSpace(clientDirectory) ||
+            !Directory.Exists(clientDirectory))
+        {
+            return $"Wine: {wineExecutable}";
+        }
+
+        var wowExecutable = FindWowExecutable(Path.GetFullPath(clientDirectory));
+
+        if (wowExecutable is null)
+            return $"Wine: {wineExecutable}";
+
+        var winePrefix = FindWinePrefix(wowExecutable);
+
+        return string.IsNullOrWhiteSpace(winePrefix)
+            ? $"Wine: {wineExecutable} • default prefix"
+            : $"Wine: {wineExecutable} • Prefix: {winePrefix}";
+    }
+
     public RealmLaunchResult PrepareAndLaunch(
         string clientDirectory,
         RealmInfo realm)

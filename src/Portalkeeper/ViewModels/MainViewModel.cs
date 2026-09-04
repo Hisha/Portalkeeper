@@ -46,6 +46,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private bool _isLaunching;
     private bool _isGameRunning;
+    private bool _hidePortalkeeperWhileGameRuns = true;
 
     private string _launchStatus =
         "Ready to enter realm.";
@@ -207,6 +208,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
             : "LOCATE CLIENT";
 
     // ---------------------------------------------------------
+    // Settings
+    // ---------------------------------------------------------
+
+    public bool HidePortalkeeperWhileGameRuns
+    {
+        get => _hidePortalkeeperWhileGameRuns;
+        set
+        {
+            if (_hidePortalkeeperWhileGameRuns == value)
+                return;
+
+            _hidePortalkeeperWhileGameRuns = value;
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public string LaunchEnvironmentStatus =>
+        _realmLaunchService.GetLaunchEnvironmentSummary(ClientPath);
+
+    // ---------------------------------------------------------
     // Launch readiness
     // ---------------------------------------------------------
 
@@ -320,11 +342,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (!client.IsSupportedClient)
             return;
 
-        _settingsService.Save(
-            new PortalkeeperSettings
-            {
-                ClientPath = client.DirectoryPath
-            });
+        SaveSettings();
+        OnPropertyChanged(nameof(LaunchEnvironmentStatus));
 
         _ = LoadAddonsAsync();
     }
@@ -334,6 +353,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var settings =
             _settingsService.Load();
 
+        _hidePortalkeeperWhileGameRuns =
+            settings.HidePortalkeeperWhileGameRuns;
+
         if (string.IsNullOrWhiteSpace(settings.ClientPath))
             return;
 
@@ -342,6 +364,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 settings.ClientPath);
 
         ApplyClientInfo(client);
+        OnPropertyChanged(nameof(LaunchEnvironmentStatus));
+    }
+
+    private void SaveSettings()
+    {
+        _settingsService.Save(
+            new PortalkeeperSettings
+            {
+                ClientPath = ClientValid ? ClientPath : string.Empty,
+                HidePortalkeeperWhileGameRuns = HidePortalkeeperWhileGameRuns
+            });
     }
 
     private void ApplyClientInfo(ClientInfo client)

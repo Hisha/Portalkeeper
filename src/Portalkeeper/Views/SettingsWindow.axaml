@@ -1,0 +1,118 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Portalkeeper.ViewModels"
+    x:Class="Portalkeeper.Views.SettingsWindow"
+    x:DataType="vm:MainViewModel"
+    Width="650"
+    Height="500"
+    MinWidth="560"
+    MinHeight="430"
+    Title="Portalkeeper Settings"
+    WindowStartupLocation="CenterOwner"
+    Background="#15121B">
+
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#332B42" />
+            <Setter Property="Foreground" Value="#F3EFF8" />
+            <Setter Property="BorderBrush" Value="#554669" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="16,8" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#493A5E" />
+            <Setter Property="BorderBrush" Value="#75608E" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border
+            Grid.Row="0"
+            Background="#211B2A"
+            BorderBrush="#3A3047"
+            BorderThickness="0,0,0,1"
+            Padding="22,18">
+            <StackPanel Spacing="4">
+                <TextBlock
+                    Text="SETTINGS"
+                    Foreground="#F4F0F8"
+                    FontSize="22"
+                    FontWeight="Bold" />
+                <TextBlock
+                    Text="Portalkeeper client and launch preferences"
+                    Foreground="#A99CB8"
+                    FontSize="13" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="20" Spacing="14">
+
+                <Border
+                    Padding="16"
+                    Background="#211C29"
+                    BorderBrush="#3E334C"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="CLIENT" FontSize="11" FontWeight="Bold" Foreground="#AFA6BD" />
+                        <TextBlock Text="{Binding ClientPath}" Foreground="#F2EDF6" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ClientStatus}" Foreground="#90879D" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Padding="16"
+                    Background="#211C29"
+                    BorderBrush="#3E334C"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="REALM" FontSize="11" FontWeight="Bold" Foreground="#AFA6BD" />
+                        <TextBlock Text="{Binding RealmName}" Foreground="#F2EDF6" />
+                        <TextBlock Text="{Binding RealmStatus}" Foreground="#90879D" FontSize="12" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Padding="16"
+                    Background="#211C29"
+                    BorderBrush="#3E334C"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="LAUNCH ENVIRONMENT" FontSize="11" FontWeight="Bold" Foreground="#AFA6BD" />
+                        <TextBlock Text="{Binding LaunchEnvironmentStatus}" Foreground="#C8BCD4" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Padding="16"
+                    Background="#211C29"
+                    BorderBrush="#3E334C"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                    <CheckBox
+                        IsChecked="{Binding HidePortalkeeperWhileGameRuns, Mode=TwoWay}"
+                        Content="Hide Portalkeeper while World of Warcraft is running"
+                        Foreground="#F2EDF6" />
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border
+            Grid.Row="2"
+            Background="#211B2A"
+            BorderBrush="#3A3047"
+            BorderThickness="0,1,0,0"
+            Padding="18,14">
+            <Button
+                Content="CLOSE"
+                HorizontalAlignment="Right"
+                Click="Close_Click" />
+        </Border>
+    </Grid>
+</Window>

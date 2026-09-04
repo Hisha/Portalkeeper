@@ -59,4 +59,5 @@ public sealed class SettingsService
 public sealed class PortalkeeperSettings
 {
     public string ClientPath { get; set; } = string.Empty;
+    public bool HidePortalkeeperWhileGameRuns { get; set; } = true;
 }
