@@ -232,6 +232,11 @@ public sealed class RealmLaunchService
                 UseShellExecute = false
             };
 
+            var winePrefix = FindWinePrefix(wowExecutable);
+
+            if (!string.IsNullOrWhiteSpace(winePrefix))
+                startInfo.Environment["WINEPREFIX"] = winePrefix;
+
             startInfo.ArgumentList.Add(wowExecutable);
         }
         else
@@ -245,6 +250,107 @@ public sealed class RealmLaunchService
         if (process is null)
             throw new InvalidOperationException(
                 "The World of Warcraft process could not be started.");
+    }
+
+
+    private static string? FindWinePrefix(string wowExecutable)
+    {
+        var configuredPrefix =
+            Environment.GetEnvironmentVariable("WINEPREFIX");
+
+        if (!string.IsNullOrWhiteSpace(configuredPrefix))
+        {
+            var expandedPrefix = ExpandHome(configuredPrefix);
+
+            if (Directory.Exists(expandedPrefix))
+                return expandedPrefix;
+        }
+
+        var homeDirectory =
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            return null;
+
+        var applicationsDirectory = Path.Combine(
+            homeDirectory,
+            ".local",
+            "share",
+            "applications");
+
+        if (!Directory.Exists(applicationsDirectory))
+            return null;
+
+        var normalizedWowPath =
+            Path.GetFullPath(wowExecutable);
+
+        foreach (var desktopFile in Directory.EnumerateFiles(
+                     applicationsDirectory,
+                     "*.desktop",
+                     SearchOption.TopDirectoryOnly))
+        {
+            string[] lines;
+
+            try
+            {
+                lines = File.ReadAllLines(desktopFile);
+            }
+            catch
+            {
+                continue;
+            }
+
+            var execLine = lines.FirstOrDefault(line =>
+                line.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrWhiteSpace(execLine))
+                continue;
+
+            var command = execLine["Exec=".Length..];
+
+            if (!command.Contains(
+                    normalizedWowPath,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            const string prefixMarker = "WINEPREFIX=";
+            var prefixIndex = command.IndexOf(
+                prefixMarker,
+                StringComparison.Ordinal);
+
+            if (prefixIndex < 0)
+                continue;
+
+            var prefixStart = prefixIndex + prefixMarker.Length;
+            var prefixEnd = command.IndexOf(' ', prefixStart);
+
+            var prefix = prefixEnd < 0
+                ? command[prefixStart..]
+                : command[prefixStart..prefixEnd];
+
+            prefix = prefix.Trim().Trim('"', '\'');
+            prefix = ExpandHome(prefix);
+
+            if (Directory.Exists(prefix))
+                return prefix;
+        }
+
+        return null;
+    }
+
+    private static string ExpandHome(string path)
+    {
+        if (!path.StartsWith("~/", StringComparison.Ordinal))
+            return path;
+
+        var homeDirectory =
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        return string.IsNullOrWhiteSpace(homeDirectory)
+            ? path
+            : Path.Combine(homeDirectory, path[2..]);
     }
 
     private static string? FindOnPath(string executableName)
