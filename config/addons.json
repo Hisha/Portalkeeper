@@ -4,15 +4,15 @@
     {
       "id": "unifiedbags335",
       "name": "UnifiedBags335",
-      "required": true,
-      "recommended": false,
+      "required": false,
+      "recommended": true,
       "gitUrl": "https://github.com/Hisha/UnifiedBags335"
     },
     {
       "id": "bankreagentsui",
       "name": "BankReagentsUI",
-      "required": true,
-      "recommended": false,
+      "required": false,
+      "recommended": true,
       "gitUrl": "https://github.com/Hisha/BankReagentsUI"
     },
     {
@@ -30,11 +30,11 @@
       "gitUrl": "https://github.com/Hisha/AutoTalentsUI"
     },
 	{
-		"id": "multibot",
-	    "name": "MultiBot",
-	    "required": false,
-	    "recommended": true,
-	    "gitUrl": "https://github.com/Wishmaster117/MultiBot-Chatless"
+	  "id": "multibot",
+	  "name": "MultiBot",
+	  "required": true,
+	  "recommended": false,
+	  "gitUrl": "https://github.com/Wishmaster117/MultiBot-Chatless"
 	}
   ]
 }
