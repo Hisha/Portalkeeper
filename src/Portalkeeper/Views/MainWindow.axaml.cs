@@ -64,6 +64,18 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel)
             return;
 
-        await viewModel.EnterRealmAsync();
+        var hiddenForGame = false;
+
+        await viewModel.EnterRealmAsync(() =>
+        {
+            hiddenForGame = true;
+            Hide();
+        });
+
+        if (hiddenForGame)
+        {
+            Show();
+            Activate();
+        }
     }
 }

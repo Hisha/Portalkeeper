@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Portalkeeper.Models;
 
 namespace Portalkeeper.Services;
@@ -47,13 +48,14 @@ public sealed class RealmLaunchService
         var realmlistPath = Path.Combine(localeDirectory, "realmlist.wtf");
 
         WriteRealmlist(realmlistPath, realm.Address, fullClientDirectory);
-        LaunchWow(wowExecutable, fullClientDirectory);
+        var process = LaunchWow(wowExecutable, fullClientDirectory);
 
         return new RealmLaunchResult
         {
             Locale = locale,
             RealmlistPath = realmlistPath,
-            ExecutablePath = wowExecutable
+            ExecutablePath = wowExecutable,
+            Process = process
         };
     }
 
@@ -200,7 +202,7 @@ public sealed class RealmLaunchService
             .Trim();
     }
 
-    private static void LaunchWow(
+    private static Process LaunchWow(
         string wowExecutable,
         string clientDirectory)
     {
@@ -250,6 +252,96 @@ public sealed class RealmLaunchService
         if (process is null)
             throw new InvalidOperationException(
                 "The World of Warcraft process could not be started.");
+
+        return process;
+    }
+
+    public async Task WaitForGameExitAsync(RealmLaunchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var process = result.Process
+            ?? throw new InvalidOperationException(
+                "No World of Warcraft process is associated with this launch.");
+
+        // In the normal Windows and Wine paths the process returned by
+        // Process.Start remains alive for the lifetime of the game.
+        await Task.Delay(500);
+
+        if (!process.HasExited)
+        {
+            await process.WaitForExitAsync();
+            return;
+        }
+
+        // Some Wine configurations hand the executable off to another
+        // process and let the original loader exit. In that case, follow
+        // the process by its command line under /proc.
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        var foundGame = false;
+
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            if (IsLinuxGameProcessRunning(result.ExecutablePath))
+            {
+                foundGame = true;
+                break;
+            }
+
+            await Task.Delay(250);
+        }
+
+        if (!foundGame)
+            return;
+
+        while (IsLinuxGameProcessRunning(result.ExecutablePath))
+            await Task.Delay(1000);
+    }
+
+    private static bool IsLinuxGameProcessRunning(string wowExecutable)
+    {
+        var normalizedPath = Path.GetFullPath(wowExecutable);
+        const string procDirectory = "/proc";
+
+        if (!Directory.Exists(procDirectory))
+            return false;
+
+        foreach (var processDirectory in Directory.EnumerateDirectories(procDirectory))
+        {
+            var name = Path.GetFileName(processDirectory);
+
+            if (string.IsNullOrWhiteSpace(name) ||
+                !name.All(char.IsDigit))
+            {
+                continue;
+            }
+
+            var commandLinePath = Path.Combine(processDirectory, "cmdline");
+
+            try
+            {
+                if (!File.Exists(commandLinePath))
+                    continue;
+
+                var commandLine = File.ReadAllText(commandLinePath)
+                    .Replace('\0', ' ');
+
+                if (commandLine.Contains(
+                        normalizedPath,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // Processes may exit while /proc is being inspected.
+            }
+        }
+
+        return false;
     }
 
 
@@ -380,4 +472,5 @@ public sealed class RealmLaunchResult
     public string Locale { get; init; } = string.Empty;
     public string RealmlistPath { get; init; } = string.Empty;
     public string ExecutablePath { get; init; } = string.Empty;
+    public Process? Process { get; init; }
 }

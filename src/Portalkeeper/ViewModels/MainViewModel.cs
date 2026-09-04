@@ -45,6 +45,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _addonsLoaded;
 
     private bool _isLaunching;
+    private bool _isGameRunning;
 
     private string _launchStatus =
         "Ready to enter realm.";
@@ -237,33 +238,61 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsGameRunning
+    {
+        get => _isGameRunning;
+        private set
+        {
+            if (_isGameRunning == value)
+                return;
+
+            _isGameRunning = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(EnterRealmButtonText));
+        }
+    }
+
     public string EnterRealmButtonText =>
         IsLaunching
             ? "LAUNCHING..."
-            : "ENTER REALM";
+            : IsGameRunning
+                ? "WORLD OF WARCRAFT RUNNING"
+                : "ENTER REALM";
 
     public bool CanEnterRealm =>
         ClientValid &&
         RealmConfigured &&
         AddonsReady &&
-        !IsLaunching;
+        !IsLaunching &&
+        !IsGameRunning;
 
-    public Task EnterRealmAsync()
+    public async Task EnterRealmAsync(Action? onLaunched = null)
     {
         if (!CanEnterRealm || _realmInfo is null)
-            return Task.CompletedTask;
+            return;
 
         IsLaunching = true;
         LaunchStatus = "Preparing client...";
 
+        RealmLaunchResult? result = null;
+
         try
         {
-            var result = _realmLaunchService.PrepareAndLaunch(
+            result = _realmLaunchService.PrepareAndLaunch(
                 ClientPath,
                 _realmInfo);
 
+            IsGameRunning = true;
+            IsLaunching = false;
             LaunchStatus =
-                $"World of Warcraft launched ({result.Locale}).";
+                $"World of Warcraft is running ({result.Locale}).";
+
+            onLaunched?.Invoke();
+
+            await _realmLaunchService.WaitForGameExitAsync(result);
+
+            LaunchStatus = "World of Warcraft exited.";
         }
         catch (Exception ex)
         {
@@ -273,9 +302,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         finally
         {
             IsLaunching = false;
+            IsGameRunning = false;
         }
-
-        return Task.CompletedTask;
     }
 
     // ---------------------------------------------------------
