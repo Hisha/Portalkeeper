@@ -7,33 +7,32 @@ namespace Portalkeeper.Services;
 
 public sealed class AddonService
 {
+    private readonly AddonInstallStateService _installStateService = new();
+
     public IReadOnlyList<AddonInfo> InspectAddons(
         string clientDirectory,
         AddonManifest manifest)
     {
-        var results =
-            new List<AddonInfo>();
+        var results = new List<AddonInfo>();
 
-        var addonsDirectory =
-            Path.Combine(
-                clientDirectory,
-                "Interface",
-                "AddOns");
+        var addonsDirectory = Path.Combine(
+            clientDirectory,
+            "Interface",
+            "AddOns");
 
         foreach (var addon in manifest.Addons)
         {
             if (string.IsNullOrWhiteSpace(addon.Folder))
-            {
                 continue;
-            }
 
-            var addonDirectory =
-                Path.Combine(
-                    addonsDirectory,
-                    addon.Folder);
+            var addonDirectory = Path.Combine(
+                addonsDirectory,
+                addon.Folder);
 
-            var installed =
-                Directory.Exists(addonDirectory);
+            var installed = Directory.Exists(addonDirectory);
+            var state = _installStateService.Load(
+                clientDirectory,
+                addon.Id);
 
             results.Add(
                 new AddonInfo
@@ -41,12 +40,12 @@ public sealed class AddonService
                     Definition = addon,
                     DirectoryPath = addonDirectory,
                     IsInstalled = installed,
-                    InstalledVersion =
-                        installed
-                            ? TryReadTocVersion(
-                                addonDirectory,
-                                addon.Folder)
-                            : string.Empty
+                    InstalledVersion = installed
+                        ? TryReadTocVersion(addonDirectory, addon.Folder)
+                        : string.Empty,
+                    InstalledSourceCommit = installed
+                        ? state.SourceCommit
+                        : string.Empty
                 });
         }
 
@@ -59,10 +58,9 @@ public sealed class AddonService
     {
         try
         {
-            var expectedToc =
-                Path.Combine(
-                    addonDirectory,
-                    addonFolder + ".toc");
+            var expectedToc = Path.Combine(
+                addonDirectory,
+                addonFolder + ".toc");
 
             string? tocPath = null;
 
@@ -72,22 +70,17 @@ public sealed class AddonService
             }
             else
             {
-                var tocFiles =
-                    Directory.GetFiles(
-                        addonDirectory,
-                        "*.toc",
-                        SearchOption.TopDirectoryOnly);
+                var tocFiles = Directory.GetFiles(
+                    addonDirectory,
+                    "*.toc",
+                    SearchOption.TopDirectoryOnly);
 
                 if (tocFiles.Length > 0)
-                {
                     tocPath = tocFiles[0];
-                }
             }
 
             if (tocPath is null)
-            {
                 return string.Empty;
-            }
 
             foreach (var rawLine in File.ReadLines(tocPath))
             {
@@ -100,9 +93,7 @@ public sealed class AddonService
                     continue;
                 }
 
-                return line[
-                    "## Version:".Length..]
-                    .Trim();
+                return line["## Version:".Length..].Trim();
             }
         }
         catch

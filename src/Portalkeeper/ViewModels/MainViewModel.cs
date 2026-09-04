@@ -13,7 +13,8 @@ namespace Portalkeeper.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly AddonManifestService _addonManifestService;
-	private readonly AddonService _addonService;
+    private readonly GitHubAddonSourceService _gitHubAddonSourceService;
+    private readonly AddonService _addonService;
     private readonly AddonInstallerService _addonInstallerService;
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
@@ -32,59 +33,57 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private bool _clientValid;
 
-	private AddonManifest? _addonManifest;
+    private AddonManifest? _addonManifest;
 
-	public IReadOnlyList<AddonInfo> Addons =>
-    _addons;
-    
     private IReadOnlyList<AddonInfo> _addons =
-    Array.Empty<AddonInfo>();
-	
-	private string _addonStatus =
-	    "No addon manifest loaded.";
-	
-	private bool _addonsLoaded;
-	
-	public string AddonStatus =>
-	    _addonStatus;
-	
-	public bool AddonsLoaded =>
-	    _addonsLoaded;
-	    
-	public bool AddonsReady =>
-    _addonsLoaded &&
-    _addons.All(addon =>
-        !addon.Definition.Required ||
-        (addon.IsInstalled && !addon.IsUpdateAvailable));
-	
-	public string AddonStatusSymbol =>
-    AddonsReady
-        ? "● Ready"
-        : AddonsLoaded
-            ? "● Needs Attention"
-            : "● Not Configured";
-	
-	public MainViewModel()
+        Array.Empty<AddonInfo>();
+
+    private string _addonStatus =
+        "No addon manifest loaded.";
+
+    private bool _addonsLoaded;
+
+    public MainViewModel()
     {
-        _addonManifestService =
-	    	new AddonManifestService();
-		_addonService =
-	    	new AddonService();
+        _addonManifestService = new AddonManifestService();
+        _gitHubAddonSourceService = new GitHubAddonSourceService();
+        _addonService = new AddonService();
         _addonInstallerService = new AddonInstallerService();
         _clientService = new ClientService();
         _settingsService = new SettingsService();
-        _realmConfigurationService =
-            new RealmConfigurationService();
+        _realmConfigurationService = new RealmConfigurationService();
 
         LoadSavedClient();
         LoadRealmConfiguration();
         _ = LoadAddonsAsync();
     }
-    
+
+    public IReadOnlyList<AddonInfo> Addons =>
+        _addons;
+
+    public string AddonStatus =>
+        _addonStatus;
+
+    public bool AddonsLoaded =>
+        _addonsLoaded;
+
+    public bool AddonsReady =>
+        _addonsLoaded &&
+        _addons.All(addon =>
+            !addon.Definition.Required ||
+            (addon.IsInstalled && !addon.IsUpdateAvailable));
+
+    public string AddonStatusSymbol =>
+        AddonsReady
+            ? "● Ready"
+            : AddonsLoaded
+                ? "● Needs Attention"
+                : "● Not Configured";
+
     public Task RefreshAddonsAsync()
-	{
-	    return LoadAddonsAsync();
-	}
+    {
+        return LoadAddonsAsync();
+    }
 
     public async Task InstallOrUpdateAddonAsync(string addonId)
     {
@@ -94,7 +93,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 StringComparison.OrdinalIgnoreCase));
 
         if (addon is null)
-            throw new InvalidOperationException("Addon was not found in the active manifest.");
+        {
+            throw new InvalidOperationException(
+                "Addon was not found in the active manifest.");
+        }
 
         await _addonInstallerService.InstallOrUpdateAsync(
             ClientPath,
@@ -149,9 +151,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set
         {
             if (_clientPath == value)
-            {
                 return;
-            }
 
             _clientPath = value;
             OnPropertyChanged();
@@ -164,9 +164,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set
         {
             if (_clientStatus == value)
-            {
                 return;
-            }
 
             _clientStatus = value;
             OnPropertyChanged();
@@ -179,9 +177,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set
         {
             if (_clientValid == value)
-            {
                 return;
-            }
 
             _clientValid = value;
 
@@ -208,8 +204,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool CanEnterRealm =>
         ClientValid &&
-        RealmConfigured&&
-   		AddonsReady;
+        RealmConfigured &&
+        AddonsReady;
 
     // ---------------------------------------------------------
     // Client operations
@@ -223,17 +219,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ApplyClientInfo(client);
 
         if (!client.IsSupportedClient)
-        {
             return;
-        }
 
         _settingsService.Save(
             new PortalkeeperSettings
             {
                 ClientPath = client.DirectoryPath
             });
-            
-            _ = LoadAddonsAsync();
+
+        _ = LoadAddonsAsync();
     }
 
     private void LoadSavedClient()
@@ -242,9 +236,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _settingsService.Load();
 
         if (string.IsNullOrWhiteSpace(settings.ClientPath))
-        {
             return;
-        }
 
         var client =
             _clientService.ValidateClient(
@@ -260,11 +252,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ? "No client installation configured."
                 : client.DirectoryPath;
 
-        ClientStatus =
-            client.StatusMessage;
-
-        ClientValid =
-            client.IsSupportedClient;
+        ClientStatus = client.StatusMessage;
+        ClientValid = client.IsSupportedClient;
     }
 
     // ---------------------------------------------------------
@@ -328,8 +317,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private static List<string>
-        FindRealmConfigurationFiles()
+    private static List<string> FindRealmConfigurationFiles()
     {
         var searchDirectories =
             new[]
@@ -341,8 +329,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             .Select(Path.GetFullPath)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        var files =
-            new List<string>();
+        var files = new List<string>();
 
         foreach (var directory in searchDirectories)
         {
@@ -370,146 +357,145 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RealmStatusSymbol));
         OnPropertyChanged(nameof(CanEnterRealm));
     }
-    
+
+    // ---------------------------------------------------------
+    // Addons
+    // ---------------------------------------------------------
+
     private async Task LoadAddonsAsync()
-	{
-	    if (!ClientValid)
-	    {
-	        _addonStatus =
-	            "Configure a valid WoW client before checking addons.";
-	
-	        _addonsLoaded = false;
-	        NotifyAddonsChanged();
-	        return;
-	    }
-	
-	    string? manifestLocation = null;
-	
-	    if (_realmInfo is not null &&
-	        !string.IsNullOrWhiteSpace(
-	            _realmInfo.ManifestUrl))
-	    {
-	        manifestLocation =
-	            _realmInfo.ManifestUrl;
-	    }
-	
-	    if (string.IsNullOrWhiteSpace(manifestLocation))
-	    {
-	        var localManifest =
-	            Path.Combine(
-	                Directory.GetCurrentDirectory(),
-	                "config",
-	                "addons.json");
-	
-	        if (File.Exists(localManifest))
-	        {
-	            manifestLocation =
-	                localManifest;
-	        }
-	    }
-	
-	    if (string.IsNullOrWhiteSpace(manifestLocation))
-	    {
-	        _addonStatus =
-	            "No addon manifest available.";
-	
-	        _addonsLoaded = false;
-	        NotifyAddonsChanged();
-	        return;
-	    }
-	
-	    try
-	    {
-	        _addonManifest =
-	            await _addonManifestService.LoadAsync(
-	                manifestLocation);
-	
-	        _addons =
-	            _addonService.InspectAddons(
-	                ClientPath,
-	                _addonManifest);
-	
-	        var installed =
-	            _addons.Count(addon =>
-	                addon.IsInstalled);
-	
-	        var missing =
-	            _addons.Count - installed;
-	
-	        var requiredMissing =
-	            _addons.Count(addon =>
-	                addon.Definition.Required &&
-	                !addon.IsInstalled);
+    {
+        if (!ClientValid)
+        {
+            _addonStatus =
+                "Configure a valid WoW client before checking addons.";
 
-	        var updatesAvailable =
-	            _addons.Count(addon => addon.IsUpdateAvailable);
+            _addonsLoaded = false;
+            NotifyAddonsChanged();
+            return;
+        }
 
-	        var requiredUpdates =
-	            _addons.Count(addon =>
-	                addon.Definition.Required &&
-	                addon.IsUpdateAvailable);
-	
-	        if (requiredMissing > 0)
-	        {
-	            _addonStatus =
-	                $"{installed}/{_addons.Count} managed addons installed; " +
-	                $"{requiredMissing} required addon(s) missing.";
-	        }
-	        else if (requiredUpdates > 0)
-	        {
-	            _addonStatus =
-	                $"{requiredUpdates} required addon update(s) available.";
-	        }
-	        else if (updatesAvailable > 0)
-	        {
-	            _addonStatus =
-	                $"{updatesAvailable} recommended/optional addon update(s) available.";
-	        }
-	        else if (missing > 0)
-	        {
-	            _addonStatus =
-	                $"{installed}/{_addons.Count} managed addons installed; " +
-	                $"{missing} optional/recommended addon(s) missing.";
-	        }
-	        else
-	        {
-	            _addonStatus =
-	                $"All {_addons.Count} managed addons are current.";
-	        }
-	
-	        _addonsLoaded = true;
-	        NotifyAddonsChanged();
-	    }
-	    catch (Exception ex)
-	    {
-	        _addonManifest = null;
-	        _addons =
-	            Array.Empty<AddonInfo>();
-	
-	        _addonStatus =
-	            $"Unable to load addon manifest: {ex.Message}";
-	
-	        _addonsLoaded = false;
-	        NotifyAddonsChanged();
-	    }
-	}
-	
-	private void NotifyAddonsChanged()
-	{
-	    OnPropertyChanged(nameof(AddonStatus));
-	    OnPropertyChanged(nameof(AddonsLoaded));
-	    OnPropertyChanged(nameof(AddonsReady));
-	    OnPropertyChanged(nameof(AddonStatusSymbol));
-	    OnPropertyChanged(nameof(Addons));
-	    OnPropertyChanged(nameof(CanEnterRealm));								
-	}
+        string? manifestLocation = null;
+
+        if (_realmInfo is not null &&
+            !string.IsNullOrWhiteSpace(_realmInfo.ManifestUrl))
+        {
+            manifestLocation = _realmInfo.ManifestUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(manifestLocation))
+        {
+            var localManifest = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "config",
+                "addons.json");
+
+            if (File.Exists(localManifest))
+                manifestLocation = localManifest;
+        }
+
+        if (string.IsNullOrWhiteSpace(manifestLocation))
+        {
+            _addonStatus =
+                "No addon manifest available.";
+
+            _addonsLoaded = false;
+            NotifyAddonsChanged();
+            return;
+        }
+
+        try
+        {
+            var rawManifest =
+                await _addonManifestService.LoadAsync(
+                    manifestLocation);
+
+            _addonManifest =
+                await _gitHubAddonSourceService.ResolveManifestAsync(
+                    rawManifest);
+
+            _addons =
+                _addonService.InspectAddons(
+                    ClientPath,
+                    _addonManifest);
+
+            var installed =
+                _addons.Count(addon => addon.IsInstalled);
+
+            var missing =
+                _addons.Count - installed;
+
+            var requiredMissing =
+                _addons.Count(addon =>
+                    addon.Definition.Required &&
+                    !addon.IsInstalled);
+
+            var updatesAvailable =
+                _addons.Count(addon => addon.IsUpdateAvailable);
+
+            var requiredUpdates =
+                _addons.Count(addon =>
+                    addon.Definition.Required &&
+                    addon.IsUpdateAvailable);
+
+            if (requiredMissing > 0)
+            {
+                _addonStatus =
+                    $"{installed}/{_addons.Count} managed addons installed; " +
+                    $"{requiredMissing} required addon(s) missing.";
+            }
+            else if (requiredUpdates > 0)
+            {
+                _addonStatus =
+                    $"{requiredUpdates} required addon update(s) available.";
+            }
+            else if (updatesAvailable > 0)
+            {
+                _addonStatus =
+                    $"{updatesAvailable} recommended/optional addon update(s) available.";
+            }
+            else if (missing > 0)
+            {
+                _addonStatus =
+                    $"{installed}/{_addons.Count} managed addons installed; " +
+                    $"{missing} optional/recommended addon(s) missing.";
+            }
+            else
+            {
+                _addonStatus =
+                    $"All {_addons.Count} managed addons are current.";
+            }
+
+            _addonsLoaded = true;
+            NotifyAddonsChanged();
+        }
+        catch (Exception ex)
+        {
+            _addonManifest = null;
+            _addons = Array.Empty<AddonInfo>();
+
+            _addonStatus =
+                $"Unable to load addon manifest: {ex.Message}";
+
+            _addonsLoaded = false;
+            NotifyAddonsChanged();
+        }
+    }
+
+    private void NotifyAddonsChanged()
+    {
+        OnPropertyChanged(nameof(AddonStatus));
+        OnPropertyChanged(nameof(AddonsLoaded));
+        OnPropertyChanged(nameof(AddonsReady));
+        OnPropertyChanged(nameof(AddonStatusSymbol));
+        OnPropertyChanged(nameof(Addons));
+        OnPropertyChanged(nameof(CanEnterRealm));
+    }
 
     // ---------------------------------------------------------
     // Property notification
     // ---------------------------------------------------------
 
-    public event PropertyChangedEventHandler?
-        PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged(
         [CallerMemberName] string? propertyName = null)

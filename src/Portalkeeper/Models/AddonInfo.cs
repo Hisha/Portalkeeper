@@ -1,3 +1,4 @@
+using System;
 using Portalkeeper.Services;
 
 namespace Portalkeeper.Models;
@@ -12,6 +13,8 @@ public sealed class AddonInfo
 
     public string InstalledVersion { get; init; } = string.Empty;
 
+    public string InstalledSourceCommit { get; init; } = string.Empty;
+
     public bool HasKnownInstalledVersion =>
         IsInstalled &&
         !string.IsNullOrWhiteSpace(InstalledVersion);
@@ -19,12 +22,26 @@ public sealed class AddonInfo
     public bool HasAvailableVersion =>
         !string.IsNullOrWhiteSpace(Definition.Version);
 
-    public bool IsUpdateAvailable =>
+    public bool HasTrackedSourceCommit =>
+        !string.IsNullOrWhiteSpace(InstalledSourceCommit) &&
+        !string.IsNullOrWhiteSpace(Definition.SourceCommit);
+
+    public bool VersionUpdateAvailable =>
         HasKnownInstalledVersion &&
         HasAvailableVersion &&
         AddonVersionComparer.Compare(
             InstalledVersion,
             Definition.Version) < 0;
+
+    public bool SourceUpdateAvailable =>
+        IsInstalled &&
+        HasTrackedSourceCommit &&
+        !InstalledSourceCommit.Equals(
+            Definition.SourceCommit,
+            StringComparison.OrdinalIgnoreCase);
+
+    public bool IsUpdateAvailable =>
+        VersionUpdateAvailable || SourceUpdateAvailable;
 
     public bool IsNewerThanManifest =>
         HasKnownInstalledVersion &&
@@ -58,8 +75,13 @@ public sealed class AddonInfo
 
     public bool CanInstallOrUpdate =>
         (!IsInstalled || IsUpdateAvailable) &&
-        !string.IsNullOrWhiteSpace(Definition.DownloadUrl) &&
-        !string.IsNullOrWhiteSpace(Definition.Sha256);
+        (
+            (Definition.IsGitHubSource &&
+             !string.IsNullOrWhiteSpace(Definition.SourceCommit))
+            ||
+            (!string.IsNullOrWhiteSpace(Definition.DownloadUrl) &&
+             !string.IsNullOrWhiteSpace(Definition.Sha256))
+        );
 
     public string ActionText =>
         !IsInstalled ? "INSTALL" : "UPDATE";

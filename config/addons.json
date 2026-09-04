@@ -4,42 +4,30 @@
     {
       "id": "unifiedbags335",
       "name": "UnifiedBags335",
-      "folder": "UnifiedBags335",
-      "version": "0.2.10",
       "required": true,
       "recommended": false,
-      "downloadUrl": "",
-      "sha256": ""
+      "gitUrl": "https://github.com/Hisha/UnifiedBags335"
     },
     {
       "id": "bankreagentsui",
       "name": "BankReagentsUI",
-      "folder": "BankReagentsUI",
-      "version": "0.2.0-beta1",
       "required": true,
       "recommended": false,
-      "downloadUrl": "",
-      "sha256": ""
+      "gitUrl": "https://github.com/Hisha/BankReagentsUI"
     },
     {
       "id": "huntsui",
       "name": "HuntsUI",
-      "folder": "HuntsUI",
-      "version": "1.0.6-dev",
       "required": false,
       "recommended": true,
-      "downloadUrl": "",
-      "sha256": ""
+      "gitUrl": "https://github.com/Hisha/HuntsUI"
     },
     {
       "id": "autotalentsui",
       "name": "AutoTalentsUI",
-      "folder": "AutoTalentsUI",
-      "version": "0.6.3",
       "required": false,
       "recommended": true,
-      "downloadUrl": "",
-      "sha256": ""
+      "gitUrl": "https://github.com/Hisha/AutoTalentsUI"
     }
   ]
 }

@@ -12,6 +12,7 @@ namespace Portalkeeper.Services;
 public sealed class AddonInstallerService
 {
     private static readonly HttpClient HttpClient = new();
+    private readonly AddonInstallStateService _installStateService = new();
 
     public async Task InstallOrUpdateAsync(
         string clientDirectory,
@@ -36,21 +37,33 @@ public sealed class AddonInstallerService
         try
         {
             var archivePath = Path.Combine(workDirectory, "addon.zip");
-            await DownloadAsync(addon.DownloadUrl, archivePath);
-            VerifySha256(archivePath, addon.Sha256);
+
+            if (addon.IsGitHubSource)
+            {
+                var archiveUrl = GitHubAddonSourceService.BuildCommitArchiveUrl(
+                    addon.GitUrl,
+                    addon.SourceCommit);
+
+                await DownloadAsync(archiveUrl, archivePath);
+            }
+            else
+            {
+                await DownloadAsync(addon.DownloadUrl, archivePath);
+                VerifySha256(archivePath, addon.Sha256);
+            }
 
             var extractDirectory = Path.Combine(workDirectory, "extracted");
             Directory.CreateDirectory(extractDirectory);
             ExtractZipSafely(archivePath, extractDirectory);
 
-            var sourceDirectory = FindAddonDirectory(
-                extractDirectory,
-                addon.Folder);
+            var sourceDirectory = addon.IsGitHubSource
+                ? FindGitHubAddonDirectory(extractDirectory, addon)
+                : FindAddonDirectory(extractDirectory, addon.Folder);
 
             if (sourceDirectory is null)
             {
                 throw new InvalidDataException(
-                    $"The archive does not contain the expected addon folder '{addon.Folder}'.");
+                    $"The archive does not contain the expected addon '{addon.Folder}'.");
             }
 
             var tocFiles = Directory.GetFiles(
@@ -62,6 +75,17 @@ public sealed class AddonInstallerService
             {
                 throw new InvalidDataException(
                     $"The expected addon folder '{addon.Folder}' does not contain a .toc file.");
+            }
+
+            var archiveVersion = TryReadTocVersion(tocFiles);
+            if (!string.IsNullOrWhiteSpace(addon.Version) &&
+                !string.IsNullOrWhiteSpace(archiveVersion) &&
+                !archiveVersion.Equals(
+                    addon.Version,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Downloaded addon version '{archiveVersion}' does not match the discovered version '{addon.Version}'.");
             }
 
             var preparedDirectory = Path.Combine(
@@ -86,12 +110,27 @@ public sealed class AddonInstallerService
             {
                 if (hadExistingInstall)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(backupDirectory)!);
-                    Directory.Move(destinationDirectory, backupDirectory);
+                    Directory.CreateDirectory(
+                        Path.GetDirectoryName(backupDirectory)!);
+
+                    Directory.Move(
+                        destinationDirectory,
+                        backupDirectory);
+
                     backupCreated = true;
                 }
 
-                Directory.Move(preparedDirectory, destinationDirectory);
+                Directory.Move(
+                    preparedDirectory,
+                    destinationDirectory);
+
+                _installStateService.Save(
+                    clientDirectory,
+                    addon.Id,
+                    string.IsNullOrWhiteSpace(archiveVersion)
+                        ? addon.Version
+                        : archiveVersion,
+                    addon.SourceCommit);
             }
             catch
             {
@@ -124,7 +163,35 @@ public sealed class AddonInstallerService
             string.IsNullOrWhiteSpace(addon.Folder))
         {
             throw new InvalidDataException(
-                "Addon manifest entry is missing an id or folder name.");
+                "Addon source is missing an id or discovered folder name.");
+        }
+
+        if (addon.Folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            addon.Folder.Contains(Path.DirectorySeparatorChar) ||
+            addon.Folder.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new InvalidDataException(
+                $"Invalid addon folder name: {addon.Folder}");
+        }
+
+        if (addon.IsGitHubSource)
+        {
+            if (string.IsNullOrWhiteSpace(addon.SourceCommit))
+            {
+                throw new InvalidDataException(
+                    $"No GitHub source commit was resolved for {addon.Name}.");
+            }
+
+            if (!GitHubAddonSourceService.TryParseRepositoryUrl(
+                    addon.GitUrl,
+                    out _,
+                    out _))
+            {
+                throw new InvalidDataException(
+                    $"Unsupported GitHub repository URL for {addon.Name}.");
+            }
+
+            return;
         }
 
         if (string.IsNullOrWhiteSpace(addon.DownloadUrl))
@@ -139,14 +206,6 @@ public sealed class AddonInstallerService
         {
             throw new InvalidDataException(
                 $"A valid SHA-256 hash is required for {addon.Name}.");
-        }
-
-        if (addon.Folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            addon.Folder.Contains(Path.DirectorySeparatorChar) ||
-            addon.Folder.Contains(Path.AltDirectorySeparatorChar))
-        {
-            throw new InvalidDataException(
-                $"Invalid addon folder name: {addon.Folder}");
         }
     }
 
@@ -172,7 +231,11 @@ public sealed class AddonInstallerService
 
         var sourcePath = Path.GetFullPath(location);
         if (!File.Exists(sourcePath))
-            throw new FileNotFoundException("Addon archive was not found.", sourcePath);
+        {
+            throw new FileNotFoundException(
+                "Addon archive was not found.",
+                sourcePath);
+        }
 
         File.Copy(sourcePath, destinationPath, true);
     }
@@ -222,9 +285,38 @@ public sealed class AddonInstallerService
                 continue;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            Directory.CreateDirectory(
+                Path.GetDirectoryName(destinationPath)!);
+
             entry.ExtractToFile(destinationPath, true);
         }
+    }
+
+    private static string? FindGitHubAddonDirectory(
+        string extractDirectory,
+        AddonDefinition addon)
+    {
+        var topLevelDirectories = Directory.GetDirectories(extractDirectory);
+        if (topLevelDirectories.Length != 1)
+            return null;
+
+        var repositoryRoot = topLevelDirectories[0];
+
+        var sourceDirectory = string.IsNullOrWhiteSpace(addon.AddonPath)
+            ? repositoryRoot
+            : Path.Combine(
+                repositoryRoot,
+                addon.AddonPath.Replace('/', Path.DirectorySeparatorChar));
+
+        if (!Directory.Exists(sourceDirectory))
+            return null;
+
+        return Directory.GetFiles(
+            sourceDirectory,
+            "*.toc",
+            SearchOption.TopDirectoryOnly).Length > 0
+                ? sourceDirectory
+                : null;
     }
 
     private static string? FindAddonDirectory(
@@ -252,6 +344,29 @@ public sealed class AddonInstallerService
             : null;
     }
 
+    private static string TryReadTocVersion(
+        string[] tocFiles)
+    {
+        foreach (var tocPath in tocFiles)
+        {
+            foreach (var rawLine in File.ReadLines(tocPath))
+            {
+                var line = rawLine.Trim();
+
+                if (!line.StartsWith(
+                        "## Version:",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return line["## Version:".Length..].Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
     private static string CreateBackupPath(
         string clientDirectory,
         AddonDefinition addon)
@@ -277,7 +392,9 @@ public sealed class AddonInstallerService
         {
             File.Copy(
                 file,
-                Path.Combine(destinationDirectory, Path.GetFileName(file)),
+                Path.Combine(
+                    destinationDirectory,
+                    Path.GetFileName(file)),
                 true);
         }
 
@@ -285,7 +402,9 @@ public sealed class AddonInstallerService
         {
             CopyDirectory(
                 directory,
-                Path.Combine(destinationDirectory, Path.GetFileName(directory)));
+                Path.Combine(
+                    destinationDirectory,
+                    Path.GetFileName(directory)));
         }
     }
 }
