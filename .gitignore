@@ -21,3 +21,6 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Release output
+dist/

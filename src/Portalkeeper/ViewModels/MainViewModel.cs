@@ -449,7 +449,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             LaunchStatus =
-                $"Unable to launch World of Warcraft: {ex.Message}";
+                UserErrorService.Format(ex, "Unable to launch World of Warcraft");
         }
         finally
         {
@@ -646,7 +646,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _realmInfo = null;
             _realmHealthState = RealmHealthState.Unknown;
             _realmStatus =
-                $"Unable to load realm configuration: {ex.Message}";
+                UserErrorService.Format(ex, "Unable to load realm configuration");
 
             NotifyRealmChanged();
         }
@@ -819,7 +819,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                         new AddonInfo
                         {
                             Definition = personalDefinition,
-                            DiscoveryError = ex.Message
+                            DiscoveryError = UserErrorService.Format(ex)
                         });
                 }
             }
@@ -904,7 +904,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _addons = Array.Empty<AddonInfo>();
 
             _addonStatus =
-                $"Unable to load addon manifest: {ex.Message}";
+                UserErrorService.Format(ex, "Unable to load addon configuration");
 
             _addonsLoaded = false;
             NotifyAddonsChanged();

@@ -389,78 +389,162 @@ public sealed class RealmLaunchService
                 return expandedPrefix;
         }
 
-        var homeDirectory =
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var normalizedWowPath = Path.GetFullPath(wowExecutable);
 
-        if (string.IsNullOrWhiteSpace(homeDirectory))
-            return null;
-
-        var applicationsDirectory = Path.Combine(
-            homeDirectory,
-            ".local",
-            "share",
-            "applications");
-
-        if (!Directory.Exists(applicationsDirectory))
-            return null;
-
-        var normalizedWowPath =
-            Path.GetFullPath(wowExecutable);
-
-        foreach (var desktopFile in Directory.EnumerateFiles(
-                     applicationsDirectory,
-                     "*.desktop",
-                     SearchOption.TopDirectoryOnly))
+        foreach (var applicationsDirectory in GetDesktopApplicationDirectories())
         {
-            string[] lines;
+            if (!Directory.Exists(applicationsDirectory))
+                continue;
 
-            try
+            foreach (var desktopFile in Directory.EnumerateFiles(
+                         applicationsDirectory,
+                         "*.desktop",
+                         SearchOption.TopDirectoryOnly))
             {
-                lines = File.ReadAllLines(desktopFile);
+                string[] lines;
+
+                try
+                {
+                    lines = File.ReadAllLines(desktopFile);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var execLine = lines.FirstOrDefault(line =>
+                    line.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase));
+
+                if (string.IsNullOrWhiteSpace(execLine))
+                    continue;
+
+                var command = execLine["Exec=".Length..];
+
+                if (!command.Contains(
+                        normalizedWowPath,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                const string prefixMarker = "WINEPREFIX=";
+                var prefixIndex = command.IndexOf(
+                    prefixMarker,
+                    StringComparison.Ordinal);
+
+                if (prefixIndex < 0)
+                    continue;
+
+                var prefixStart = prefixIndex + prefixMarker.Length;
+                var prefixEnd = command.IndexOf(' ', prefixStart);
+
+                var prefix = prefixEnd < 0
+                    ? command[prefixStart..]
+                    : command[prefixStart..prefixEnd];
+
+                prefix = prefix.Trim().Trim('"', '\'');
+                prefix = ExpandHomeAgainstCandidates(prefix);
+
+                if (Directory.Exists(prefix))
+                    return prefix;
             }
-            catch
-            {
-                continue;
-            }
-
-            var execLine = lines.FirstOrDefault(line =>
-                line.StartsWith("Exec=", StringComparison.OrdinalIgnoreCase));
-
-            if (string.IsNullOrWhiteSpace(execLine))
-                continue;
-
-            var command = execLine["Exec=".Length..];
-
-            if (!command.Contains(
-                    normalizedWowPath,
-                    StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            const string prefixMarker = "WINEPREFIX=";
-            var prefixIndex = command.IndexOf(
-                prefixMarker,
-                StringComparison.Ordinal);
-
-            if (prefixIndex < 0)
-                continue;
-
-            var prefixStart = prefixIndex + prefixMarker.Length;
-            var prefixEnd = command.IndexOf(' ', prefixStart);
-
-            var prefix = prefixEnd < 0
-                ? command[prefixStart..]
-                : command[prefixStart..prefixEnd];
-
-            prefix = prefix.Trim().Trim('"', '\'');
-            prefix = ExpandHome(prefix);
-
-            if (Directory.Exists(prefix))
-                return prefix;
         }
 
         return null;
+    }
+
+    private static IEnumerable<string> GetDesktopApplicationDirectories()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        if (!string.IsNullOrWhiteSpace(xdgDataHome))
+        {
+            var directory = Path.Combine(xdgDataHome, "applications");
+            if (seen.Add(directory))
+                yield return directory;
+        }
+
+        foreach (var home in GetCandidateHomeDirectories())
+        {
+            var directory = Path.Combine(
+                home,
+                ".local",
+                "share",
+                "applications");
+
+            if (seen.Add(directory))
+                yield return directory;
+        }
+    }
+
+    private static IEnumerable<string> GetCandidateHomeDirectories()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        var profile = Environment.GetFolderPath(
+            Environment.SpecialFolder.UserProfile);
+
+        if (!string.IsNullOrWhiteSpace(profile) && seen.Add(profile))
+            yield return profile;
+
+        var home = Environment.GetEnvironmentVariable("HOME");
+        if (!string.IsNullOrWhiteSpace(home) && seen.Add(home))
+            yield return home;
+
+        var accountHome = GetLinuxAccountHomeDirectory();
+        if (!string.IsNullOrWhiteSpace(accountHome) && seen.Add(accountHome))
+            yield return accountHome;
+    }
+
+    private static string? GetLinuxAccountHomeDirectory()
+    {
+        if (!OperatingSystem.IsLinux() || !File.Exists("/etc/passwd"))
+            return null;
+
+        try
+        {
+            var userName = Environment.UserName;
+
+            foreach (var line in File.ReadLines("/etc/passwd"))
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                    continue;
+
+                var fields = line.Split(':');
+                if (fields.Length < 6)
+                    continue;
+
+                if (!fields[0].Equals(userName, StringComparison.Ordinal))
+                    continue;
+
+                return string.IsNullOrWhiteSpace(fields[5])
+                    ? null
+                    : fields[5];
+            }
+        }
+        catch
+        {
+            // If account-home discovery fails, normal HOME/XDG discovery
+            // remains available.
+        }
+
+        return null;
+    }
+
+    private static string ExpandHomeAgainstCandidates(string path)
+    {
+        if (!path.StartsWith("~/", StringComparison.Ordinal))
+            return path;
+
+        foreach (var home in GetCandidateHomeDirectories())
+        {
+            var candidate = Path.Combine(home, path[2..]);
+            if (Directory.Exists(candidate))
+                return candidate;
+        }
+
+        return ExpandHome(path);
     }
 
     private static string ExpandHome(string path)

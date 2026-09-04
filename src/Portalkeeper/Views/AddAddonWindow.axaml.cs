@@ -2,6 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Portalkeeper.Models;
+using Portalkeeper.Services;
 using Portalkeeper.ViewModels;
 
 namespace Portalkeeper.Views;
@@ -52,7 +53,7 @@ public partial class AddAddonWindow : Window
         catch (Exception ex)
         {
             _discoveredAddon = null;
-            StatusTextBlock.Text = ex.Message;
+            StatusTextBlock.Text = UserErrorService.Format(ex);
         }
         finally
         {
@@ -95,7 +96,7 @@ public partial class AddAddonWindow : Window
         }
         catch (Exception ex)
         {
-            StatusTextBlock.Text = ex.Message;
+            StatusTextBlock.Text = UserErrorService.Format(ex);
             IsEnabled = true;
         }
     }

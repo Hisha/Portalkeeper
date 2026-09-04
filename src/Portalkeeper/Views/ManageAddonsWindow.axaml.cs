@@ -2,6 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Portalkeeper.Models;
+using Portalkeeper.Services;
 using Portalkeeper.ViewModels;
 
 namespace Portalkeeper.Views;
@@ -45,7 +46,7 @@ public partial class ManageAddonsWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(UserErrorService.Format(ex));
         }
         finally
         {
@@ -69,7 +70,7 @@ public partial class ManageAddonsWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(UserErrorService.Format(ex));
         }
         finally
         {
@@ -91,7 +92,7 @@ public partial class ManageAddonsWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(UserErrorService.Format(ex));
         }
         finally
         {
