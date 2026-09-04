@@ -57,6 +57,17 @@ public partial class MainWindow : Window
 	}
     
 
+
+    private async void RealmCheckAgain_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        await viewModel.RediscoverRealmConfigurationAsync();
+    }
+
     private async void EnterRealm_Click(
         object? sender,
         RoutedEventArgs e)
@@ -64,36 +75,6 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel)
             return;
 
-        var hiddenForGame = false;
-
-        await viewModel.EnterRealmAsync(() =>
-        {
-            if (!viewModel.HidePortalkeeperWhileGameRuns)
-                return;
-
-            hiddenForGame = true;
-            Hide();
-        });
-
-        if (hiddenForGame)
-        {
-            Show();
-            Activate();
-        }
-    }
-
-    private async void Settings_Click(
-        object? sender,
-        RoutedEventArgs e)
-    {
-        if (DataContext is not MainViewModel viewModel)
-            return;
-
-        var window = new SettingsWindow
-        {
-            DataContext = viewModel
-        };
-
-        await window.ShowDialog(this);
+        await viewModel.EnterRealmAsync();
     }
 }

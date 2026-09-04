@@ -263,6 +263,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool RealmConfigured =>
         _realmInfo?.IsConfigured == true;
 
+    public bool ShowRealmCheckAgain =>
+        !RealmConfigured;
+
     public string RealmStatusSymbol =>
         !RealmConfigured
             ? "● Not Configured"
@@ -575,6 +578,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // Realm discovery
     // ---------------------------------------------------------
 
+    public async Task RediscoverRealmConfigurationAsync()
+    {
+        LoadRealmConfiguration();
+
+        if (!RealmConfigured)
+            return;
+
+        await Task.WhenAll(
+            RefreshRealmHealthAsync(),
+            LoadAddonsAsync());
+    }
+
     private void LoadRealmConfiguration()
     {
         var candidates =
@@ -694,6 +709,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RealmName));
         OnPropertyChanged(nameof(RealmStatus));
         OnPropertyChanged(nameof(RealmConfigured));
+        OnPropertyChanged(nameof(ShowRealmCheckAgain));
         OnPropertyChanged(nameof(RealmStatusSymbol));
         OnPropertyChanged(nameof(CanEnterRealm));
         UpdateLaunchReadinessStatus();

@@ -6,14 +6,14 @@
     xmlns:vm="using:Portalkeeper.ViewModels"
     mc:Ignorable="d"
     d:DesignWidth="900"
-    d:DesignHeight="720"
+    d:DesignHeight="620"
     x:Class="Portalkeeper.Views.MainWindow"
     x:DataType="vm:MainViewModel"
     Title="Portalkeeper"
     Width="900"
-    Height="720"
+    Height="620"
     MinWidth="760"
-    MinHeight="620"
+    MinHeight="540"
     WindowStartupLocation="CenterScreen">
     
     <Window.Styles>
@@ -127,11 +127,24 @@
                                 Foreground="#90879D" />
                         </StackPanel>
 
-                        <TextBlock
+                        <StackPanel
                             Grid.Column="1"
-                            Text="{Binding RealmStatusSymbol}"
-                            Foreground="#B8A6CC"
-                            VerticalAlignment="Center" />
+                            Margin="20,0,0,0"
+                            Spacing="10"
+                            VerticalAlignment="Center">
+
+                            <TextBlock
+                                Text="{Binding RealmStatusSymbol}"
+                                Foreground="#B8A6CC"
+                                HorizontalAlignment="Center" />
+
+                            <Button
+                                Content="CHECK AGAIN"
+                                IsVisible="{Binding ShowRealmCheckAgain}"
+                                Click="RealmCheckAgain_Click"
+                                Padding="18,9" />
+
+                        </StackPanel>
 
                     </Grid>
                 </Border>
@@ -285,11 +298,11 @@
                     Foreground="#80788A"
                     VerticalAlignment="Center" />
 
-                <Button
+                <TextBlock
                     Grid.Column="1"
-                    Content="SETTINGS"
-                    Click="Settings_Click"
-                    Padding="14,6" />
+                    Text="Settings coming soon"
+                    Foreground="#80788A"
+                    VerticalAlignment="Center" />
 
             </Grid>
 
