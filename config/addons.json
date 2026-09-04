@@ -28,6 +28,13 @@
       "required": false,
       "recommended": true,
       "gitUrl": "https://github.com/Hisha/AutoTalentsUI"
-    }
+    },
+	{
+		"id": "multibot",
+	    "name": "MultiBot",
+	    "required": false,
+	    "recommended": true,
+	    "gitUrl": "https://github.com/Wishmaster117/MultiBot-Chatless"
+	}
   ]
 }
