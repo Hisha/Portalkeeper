@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Avalonia;
 using Portalkeeper.Models;
 
 namespace Portalkeeper.ViewModels;
@@ -109,11 +110,11 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
             var date = gridStart.AddDays(i);
             var isCurrentMonth = date.Month == _month.Month && date.Year == _month.Year;
             var isPublished = date >= _feed.Range.Start && date <= _feed.Range.End;
-            var eventMarkers = EventsForDay(date)
+            var dayEvents = EventsForDay(date);
+            var eventMarkers = dayEvents
                 .Take(3)
-                .Select(ToMarker)
+                .Select(e => ToMarker(e, date))
                 .ToList();
-            var totalEvents = EventsForDay(date).Count;
 
             Days.Add(new CalendarDayCell(
                 date,
@@ -123,7 +124,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
                 date == today,
                 date == _selectedDate,
                 eventMarkers,
-                Math.Max(0, totalEvents - eventMarkers.Count)));
+                Math.Max(0, dayEvents.Count - eventMarkers.Count)));
         }
     }
 
@@ -164,49 +165,129 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
         ? day.ToDateTime(TimeOnly.MinValue)
         : e.Start?.ToLocalTime().DateTime ?? DateTime.MaxValue;
 
-    private static CalendarEventMarker ToMarker(RealmCalendarEvent e)
+    private static CalendarEventMarker ToMarker(RealmCalendarEvent e, DateOnly day)
     {
         var displayName = e.Name switch
         {
             "Kalu'ak Fishing Derby" => "Kalu'ak Derby",
             "Stranglethorn Fishing Extravaganza" => "Stranglethorn",
+            "Harvest Festival" => "Harvest Festival",
             _ => e.Name
         };
 
         var (background, foreground) = EventColors(e);
-        return new CalendarEventMarker(displayName, background, foreground);
+        var icon = EventIcon(e);
+
+        var continuesFromPrevious = false;
+        var continuesToNext = false;
+        if (e.AllDay && e.StartDate is { } start)
+        {
+            var end = e.EndDate ?? start;
+            continuesFromPrevious = day > start;
+            continuesToNext = day < end;
+        }
+
+        var cornerRadius = new CornerRadius(
+            continuesFromPrevious ? 0 : 3,
+            continuesToNext ? 0 : 3,
+            continuesToNext ? 0 : 3,
+            continuesFromPrevious ? 0 : 3);
+
+        var margin = new Thickness(
+            continuesFromPrevious ? -5 : 0,
+            1,
+            continuesToNext ? -5 : 0,
+            1);
+
+        return new CalendarEventMarker(
+            displayName,
+            icon,
+            background,
+            foreground,
+            continuesFromPrevious,
+            continuesToNext,
+            cornerRadius,
+            margin);
     }
 
     private static CalendarEventDetailRow ToDetailRow(RealmCalendarEvent e)
     {
+        var (background, foreground) = EventColors(e);
+        var icon = EventIcon(e);
+
         if (e.AllDay && e.StartDate is { } start)
         {
             var end = e.EndDate ?? start;
-            var duration = start == end
-                ? "All day"
-                : $"All day • {start:MMM d} – {end:MMM d}";
-            var (background, foreground) = EventColors(e);
-            return new CalendarEventDetailRow(e.Name, duration, CategoryLabel(e.Category), background, foreground);
+            var dateText = start == end
+                ? start.ToString("dddd, MMM d", CultureInfo.CurrentCulture)
+                : $"{start:MMM d} – {end:MMM d}";
+            var durationDays = end.DayNumber - start.DayNumber + 1;
+            var detailText = durationDays <= 1
+                ? "All-day realm event"
+                : $"All-day realm event • {durationDays} days";
+
+            return new CalendarEventDetailRow(
+                e.Name,
+                dateText,
+                detailText,
+                CategoryLabel(e.Category),
+                icon,
+                background,
+                foreground);
         }
 
         if (e.Start is { } timedStart)
         {
             var localStart = timedStart.ToLocalTime();
             var localEnd = e.End?.ToLocalTime();
-            var time = localEnd is null
-                ? localStart.ToString("t")
+            var dateText = localStart.ToString("dddd, MMM d", CultureInfo.CurrentCulture);
+            var timeText = localEnd is null
+                ? localStart.ToString("t", CultureInfo.CurrentCulture)
                 : $"{localStart:t} – {localEnd.Value:t}";
-            var (background, foreground) = EventColors(e);
-            return new CalendarEventDetailRow(e.Name, time, CategoryLabel(e.Category), background, foreground);
+
+            return new CalendarEventDetailRow(
+                e.Name,
+                dateText,
+                timeText,
+                CategoryLabel(e.Category),
+                icon,
+                background,
+                foreground);
         }
 
-        var colors = EventColors(e);
-        return new CalendarEventDetailRow(e.Name, string.Empty, CategoryLabel(e.Category), colors.Background, colors.Foreground);
+        return new CalendarEventDetailRow(
+            e.Name,
+            string.Empty,
+            string.Empty,
+            CategoryLabel(e.Category),
+            icon,
+            background,
+            foreground);
     }
 
     private static string CategoryLabel(string category) => category.Equals("fishing", StringComparison.OrdinalIgnoreCase)
         ? "Fishing contest"
         : "Realm holiday";
+
+    private static string EventIcon(RealmCalendarEvent e)
+    {
+        var name = e.Name;
+
+        if (name.Contains("Darkmoon", StringComparison.OrdinalIgnoreCase)) return "◆";
+        if (e.Category.Equals("fishing", StringComparison.OrdinalIgnoreCase)) return "◈";
+        if (name.Contains("Brewfest", StringComparison.OrdinalIgnoreCase)) return "●";
+        if (name.Contains("Harvest", StringComparison.OrdinalIgnoreCase)) return "✦";
+        if (name.Contains("Pirates", StringComparison.OrdinalIgnoreCase)) return "✣";
+        if (name.Contains("Hallow", StringComparison.OrdinalIgnoreCase)) return "◇";
+        if (name.Contains("Winter", StringComparison.OrdinalIgnoreCase)) return "✶";
+        if (name.Contains("Love", StringComparison.OrdinalIgnoreCase)) return "♥";
+        if (name.Contains("Lunar", StringComparison.OrdinalIgnoreCase)) return "✧";
+        if (name.Contains("Noblegarden", StringComparison.OrdinalIgnoreCase)) return "○";
+        if (name.Contains("Children", StringComparison.OrdinalIgnoreCase)) return "★";
+        if (name.Contains("Midsummer", StringComparison.OrdinalIgnoreCase) || name.Contains("Fireworks", StringComparison.OrdinalIgnoreCase)) return "✹";
+
+        return "•";
+    }
 
     private static (string Background, string Foreground) EventColors(RealmCalendarEvent e)
     {
@@ -228,6 +309,12 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
             return ("#7A405E", "#FFF4FA");
         if (name.Contains("Lunar", StringComparison.OrdinalIgnoreCase))
             return ("#4E5781", "#F6F5FF");
+        if (name.Contains("Pirates", StringComparison.OrdinalIgnoreCase))
+            return ("#5F4B38", "#FFF6E8");
+        if (name.Contains("Noblegarden", StringComparison.OrdinalIgnoreCase))
+            return ("#5C6B38", "#F8FFE9");
+        if (name.Contains("Midsummer", StringComparison.OrdinalIgnoreCase) || name.Contains("Fireworks", StringComparison.OrdinalIgnoreCase))
+            return ("#8B4B24", "#FFF4E7");
 
         return ("#65533D", "#FFF9ED");
     }
@@ -288,22 +375,32 @@ public sealed class CalendarDayCell
 
     public string Background => IsSelected
         ? "#FFF0C8"
-        : IsCurrentMonth ? "#E8DDBF" : "#C9BC9E";
+        : IsCurrentMonth ? "#E8DDBF" : "#B1A486";
 
     public string BorderBrush => IsSelected
         ? "#9B6B24"
-        : IsToday ? "#7963A0" : "#9C8D70";
+        : IsToday ? "#7963A0" : IsCurrentMonth ? "#9C8D70" : "#81765F";
 
     public string DayForeground => IsCurrentMonth ? "#2A2118" : "#6D6250";
     public string TodayBadge => IsToday ? "TODAY" : string.Empty;
-    public double CellOpacity => IsPublished ? 1.0 : 0.45;
+    public double CellOpacity => !IsPublished ? 0.30 : IsCurrentMonth ? 1.0 : 0.58;
 }
 
-public sealed record CalendarEventMarker(string Name, string Background, string Foreground);
+public sealed record CalendarEventMarker(
+    string Name,
+    string IconGlyph,
+    string Background,
+    string Foreground,
+    bool ContinuesFromPrevious,
+    bool ContinuesToNext,
+    CornerRadius CornerRadius,
+    Thickness Margin);
 
 public sealed record CalendarEventDetailRow(
     string Name,
-    string TimeText,
+    string DateText,
+    string DetailText,
     string CategoryText,
+    string IconGlyph,
     string AccentBackground,
     string AccentForeground);

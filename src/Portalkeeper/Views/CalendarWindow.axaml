@@ -7,10 +7,10 @@
         x:Class="Portalkeeper.Views.CalendarWindow"
         x:DataType="vm:CalendarViewModel"
         Title="Realm Calendar"
-        Width="1060"
-        Height="820"
-        MinWidth="880"
-        MinHeight="700"
+        Width="1080"
+        Height="850"
+        MinWidth="900"
+        MinHeight="720"
         WindowStartupLocation="CenterOwner"
         Background="#15131B">
 
@@ -18,13 +18,13 @@
     <Style Selector="Button.nav">
       <Setter Property="Background" Value="#332B42"/>
       <Setter Property="Foreground" Value="#F3EFF8"/>
-      <Setter Property="BorderBrush" Value="#554669"/>
+      <Setter Property="BorderBrush" Value="#554866"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="5"/>
     </Style>
     <Style Selector="Button.nav:pointerover">
-      <Setter Property="Background" Value="#493A5E"/>
-      <Setter Property="BorderBrush" Value="#75608E"/>
+      <Setter Property="Background" Value="#433651"/>
+      <Setter Property="BorderBrush" Value="#77658D"/>
     </Style>
     <Style Selector="Button.nav:disabled">
       <Setter Property="Background" Value="#18151E"/>
@@ -128,7 +128,7 @@
                       Background="{Binding Background}"
                       BorderBrush="{Binding BorderBrush}"
                       Opacity="{Binding CellOpacity}">
-                <Grid RowDefinitions="Auto,*" MinHeight="70">
+                <Grid RowDefinitions="Auto,*" MinHeight="72">
                   <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="7,5,6,2">
                     <Border Background="#2B2118"
                             CornerRadius="10"
@@ -147,20 +147,28 @@
                                FontWeight="Bold"/>
                   </Grid>
 
-                  <StackPanel Grid.Row="1" Margin="5,2,5,5" Spacing="2">
+                  <StackPanel Grid.Row="1" Margin="5,2,5,5" Spacing="1">
                     <ItemsControl ItemsSource="{Binding Markers}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:CalendarEventMarker">
                           <Border Background="{Binding Background}"
-                                  CornerRadius="3"
-                                  Padding="5,2"
-                                  Margin="0,1">
-                            <TextBlock Text="{Binding Name}"
-                                       Foreground="{Binding Foreground}"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis"
-                                       MaxLines="1"/>
+                                  CornerRadius="{Binding CornerRadius}"
+                                  Margin="{Binding Margin}"
+                                  Padding="4,2">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+                              <TextBlock Text="{Binding IconGlyph}"
+                                         Foreground="{Binding Foreground}"
+                                         FontSize="9"
+                                         FontWeight="Bold"
+                                         VerticalAlignment="Center"/>
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Name}"
+                                         Foreground="{Binding Foreground}"
+                                         FontSize="9"
+                                         FontWeight="SemiBold"
+                                         TextTrimming="CharacterEllipsis"
+                                         MaxLines="1"/>
+                            </Grid>
                           </Border>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
@@ -188,7 +196,7 @@
             BorderThickness="1"
             CornerRadius="8"
             Padding="14,12">
-      <Grid ColumnDefinitions="230,*">
+      <Grid ColumnDefinitions="220,*">
         <StackPanel Margin="2,0,18,0">
           <TextBlock Text="SELECTED DAY"
                      Foreground="#8E839C"
@@ -200,6 +208,11 @@
                      FontWeight="SemiBold"
                      TextWrapping="Wrap"
                      Margin="0,3,0,0"/>
+          <TextBlock Text="Click another date to inspect its events."
+                     Foreground="#6F667A"
+                     FontSize="10"
+                     TextWrapping="Wrap"
+                     Margin="0,7,0,0"/>
         </StackPanel>
 
         <Grid Grid.Column="1">
@@ -211,22 +224,51 @@
                         IsVisible="{Binding HasSelectedEvents}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CalendarEventDetailRow">
-                <Grid ColumnDefinitions="8,*,Auto" Margin="0,3">
-                  <Border Background="{Binding AccentBackground}" CornerRadius="3" Margin="0,1,8,1"/>
-                  <StackPanel Grid.Column="1">
-                    <TextBlock Text="{Binding Name}"
-                               Foreground="#F3EFF8"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding CategoryText}"
-                               Foreground="#80768D"
-                               FontSize="10"/>
-                  </StackPanel>
-                  <TextBlock Grid.Column="2"
-                             Text="{Binding TimeText}"
-                             Foreground="#C8BED3"
-                             VerticalAlignment="Center"
-                             Margin="18,0,0,0"/>
-                </Grid>
+                <Border Background="#18151F"
+                        BorderBrush="#302A3A"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Margin="0,3">
+                  <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="10">
+                    <Border Width="28"
+                            Height="28"
+                            Background="{Binding AccentBackground}"
+                            CornerRadius="14"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding IconGlyph}"
+                                 Foreground="{Binding AccentForeground}"
+                                 FontSize="14"
+                                 FontWeight="Bold"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"/>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}"
+                                 Foreground="#F3EFF8"
+                                 FontWeight="SemiBold"
+                                 FontSize="13"/>
+                      <TextBlock Text="{Binding CategoryText}"
+                                 Foreground="#8B8197"
+                                 FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Right"
+                                Margin="18,0,0,0">
+                      <TextBlock Text="{Binding DateText}"
+                                 Foreground="#D3C7DD"
+                                 FontSize="11"
+                                 HorizontalAlignment="Right"/>
+                      <TextBlock Text="{Binding DetailText}"
+                                 Foreground="#9E93AA"
+                                 FontSize="10"
+                                 HorizontalAlignment="Right"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
