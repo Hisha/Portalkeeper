@@ -8,9 +8,9 @@
         x:DataType="vm:CalendarViewModel"
         Title="Realm Calendar"
         Width="1120"
-        Height="900"
+        Height="940"
         MinWidth="940"
-        MinHeight="760"
+        MinHeight="800"
         WindowStartupLocation="CenterOwner"
         Background="#0B1017">
 
@@ -44,6 +44,9 @@
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="VerticalContentAlignment" Value="Stretch"/>
       <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+      <Setter Property="MinHeight" Value="78"/>
     </Style>
     <Style Selector="Button.day:pointerover">
       <Setter Property="BorderThickness" Value="2"/>
@@ -54,7 +57,7 @@
 
     <!-- Scenic Portalkeeper header -->
     <Border Grid.Row="0"
-            Height="106"
+            Height="120"
             BorderBrush="#A77B34"
             BorderThickness="0,0,0,2"
             ClipToBounds="True">
@@ -63,13 +66,14 @@
                Stretch="UniformToFill"
                HorizontalAlignment="Stretch"
                VerticalAlignment="Stretch"/>
-        <Border Background="#9A07101B"/>
-        <Border Background="#34000000"/>
+        <Border Background="#8207101B"/>
+        <Border Background="#26000000"/>
+        <Border BorderBrush="#5FD7AC50" BorderThickness="0,1,0,0"/>
 
-        <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,10,22,10">
-          <Border Width="76"
-                  Height="76"
-                  CornerRadius="38"
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,12,26,12">
+          <Border Width="82"
+                  Height="82"
+                  CornerRadius="41"
                   Background="#0B121D"
                   BorderBrush="#C0903C"
                   BorderThickness="2"
@@ -83,7 +87,7 @@
                       Margin="17,0,0,0"
                       VerticalAlignment="Center">
             <TextBlock Text="REALM CALENDAR"
-                       FontSize="29"
+                       FontSize="31"
                        FontWeight="Bold"
                        Foreground="#F2CE76"
                        LetterSpacing="0.7"/>
@@ -117,7 +121,7 @@
             Background="#0D141D"
             BorderBrush="#46361E"
             BorderThickness="0,0,0,1"
-            Padding="20,11,20,10">
+            Padding="22,13,22,12">
       <Grid ColumnDefinitions="190,*,190">
         <Button Classes="nav"
                 Content="◀  PREVIOUS"
@@ -129,12 +133,17 @@
 
         <Border Grid.Column="1"
                 HorizontalAlignment="Center"
-                MinWidth="310"
-                Background="#111B27"
-                BorderBrush="#9B7130"
-                BorderThickness="1"
-                CornerRadius="3"
-                Padding="28,7">
+                MinWidth="340"
+                Background="#080D13"
+                BorderBrush="#5B4322"
+                BorderThickness="2"
+                CornerRadius="5"
+                Padding="3">
+          <Border Background="#111B27"
+                  BorderBrush="#B88839"
+                  BorderThickness="1"
+                  CornerRadius="3"
+                  Padding="30,7">
           <StackPanel>
             <TextBlock Text="{Binding MonthTitle}"
                        HorizontalAlignment="Center"
@@ -148,6 +157,7 @@
                        Foreground="#887E8F"
                        Margin="0,1,0,0"/>
           </StackPanel>
+          </Border>
         </Border>
 
         <Button Grid.Column="2"
@@ -163,18 +173,23 @@
 
     <!-- Framed parchment calendar -->
     <Border Grid.Row="2"
-            Margin="18,8,18,0"
-            Background="#17120D"
-            BorderBrush="#B1843B"
-            BorderThickness="2"
-            CornerRadius="4"
+            Margin="18,10,18,0"
+            Background="#080B0E"
+            BorderBrush="#5B3F18"
+            BorderThickness="3"
+            CornerRadius="5"
             Padding="3">
-      <Border Background="#C3B38C"
-              BorderBrush="#6A5030"
+      <Border Background="#221A11"
+              BorderBrush="#C09549"
               BorderThickness="1"
-              CornerRadius="2"
-              Padding="6">
-        <Grid RowDefinitions="Auto,*">
+              CornerRadius="3"
+              Padding="3">
+        <Border Background="#C8B991"
+                BorderBrush="#6B512C"
+                BorderThickness="1"
+                CornerRadius="2"
+                Padding="6">
+          <Grid RowDefinitions="Auto,*">
           <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*,*,*" Margin="1,0,1,4">
             <Border Grid.Column="0" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="SUN" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
             <Border Grid.Column="1" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="MON" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
@@ -185,7 +200,14 @@
             <Border Grid.Column="6" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="SAT" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
           </Grid>
 
-          <ItemsControl Grid.Row="1" ItemsSource="{Binding Days}">
+          <Grid Grid.Row="1">
+            <Image Source="/Assets/Calendar/parchment.png"
+                   Stretch="Fill"
+                   Opacity="0.28"
+                   IsHitTestVisible="False"/>
+          <ItemsControl ItemsSource="{Binding Days}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <UniformGrid Columns="7" Rows="6"/>
@@ -198,10 +220,10 @@
                         Background="{Binding Background}"
                         BorderBrush="{Binding BorderBrush}"
                         Opacity="{Binding CellOpacity}">
-                  <Grid RowDefinitions="Auto,*" MinHeight="74">
-                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="7,5,6,2">
-                      <Border Background="#332719"
-                              BorderBrush="#71572F"
+                  <Grid RowDefinitions="Auto,*" MinHeight="78" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="7,6,6,3">
+                      <Border Background="#E92B2115"
+                              BorderBrush="#8B6937"
                               BorderThickness="1"
                               CornerRadius="10"
                               Padding="6,2">
@@ -268,18 +290,25 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          </Grid>
         </Grid>
+        </Border>
       </Border>
     </Border>
 
     <!-- Selected day detail panel -->
     <Border Grid.Row="3"
             Margin="18,10,18,0"
-            Background="#0E1722"
-            BorderBrush="#8B682F"
-            BorderThickness="1"
-            CornerRadius="3"
-            Padding="12,10">
+            Background="#080D13"
+            BorderBrush="#5B401D"
+            BorderThickness="2"
+            CornerRadius="4"
+            Padding="3">
+      <Border Background="#0E1722"
+              BorderBrush="#A07835"
+              BorderThickness="1"
+              CornerRadius="3"
+              Padding="13,11">
       <Grid ColumnDefinitions="220,*">
         <StackPanel Margin="3,0,18,0">
           <TextBlock Text="SELECTED DAY"
@@ -371,6 +400,7 @@
           </ItemsControl>
         </Grid>
       </Grid>
+      </Border>
     </Border>
 
     <!-- Feed status -->

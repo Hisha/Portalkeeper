@@ -388,16 +388,16 @@ public sealed class CalendarDayCell
     public bool HasOverflow => OverflowCount > 0;
 
     public string Background => IsSelected
-        ? "#F7E5B7"
-        : IsCurrentMonth ? "#E7D5A8" : "#B2A585";
+        ? "#F5F0D59F"
+        : IsCurrentMonth ? "#E8E7D5A8" : "#A8B2A585";
 
     public string BorderBrush => IsSelected
-        ? "#E0A735"
-        : IsToday ? "#C48C2F" : IsCurrentMonth ? "#9D8051" : "#766A52";
+        ? "#F2B63F"
+        : IsToday ? "#D8A13C" : IsCurrentMonth ? "#9D8051" : "#71654E";
 
     public string DayForeground => IsCurrentMonth ? "#251A10" : "#675B47";
     public string TodayBadge => IsToday ? "TODAY" : string.Empty;
-    public double CellOpacity => !IsPublished ? 0.30 : IsCurrentMonth ? 1.0 : 0.58;
+    public double CellOpacity => !IsPublished ? 0.26 : IsCurrentMonth ? 1.0 : 0.52;
 }
 
 public sealed record CalendarEventMarker(

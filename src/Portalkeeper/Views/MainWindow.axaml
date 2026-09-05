@@ -5,306 +5,329 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Portalkeeper.ViewModels"
     mc:Ignorable="d"
-    d:DesignWidth="900"
-    d:DesignHeight="720"
+    d:DesignWidth="1180"
+    d:DesignHeight="760"
     x:Class="Portalkeeper.Views.MainWindow"
     x:DataType="vm:MainViewModel"
     Title="Portalkeeper"
-    Width="900"
-    Height="720"
-    MinWidth="760"
-    MinHeight="620"
+    Width="1180"
+    Height="760"
+    MinWidth="980"
+    MinHeight="680"
     WindowStartupLocation="CenterScreen">
-    
+
     <Window.Styles>
+        <!-- Portalkeeper fantasy chrome -->
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#111A24" />
+            <Setter Property="Foreground" Value="#F6D477" />
+            <Setter Property="BorderBrush" Value="#9A6B1E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
 
-    <!-- Standard Portalkeeper button -->
-    <Style Selector="Button">
-        <Setter Property="Background" Value="#332B42" />
-        <Setter Property="Foreground" Value="#F3EFF8" />
-        <Setter Property="BorderBrush" Value="#554669" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="5" />
-    </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1B2A38" />
+            <Setter Property="BorderBrush" Value="#D2A43A" />
+            <Setter Property="Foreground" Value="#FFE9A8" />
+        </Style>
 
-    <Style Selector="Button:pointerover">
-        <Setter Property="Background" Value="#493A5E" />
-        <Setter Property="BorderBrush" Value="#75608E" />
-    </Style>
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="#0C131B" />
+        </Style>
 
-    <Style Selector="Button:pressed">
-        <Setter Property="Background" Value="#292234" />
-    </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Background" Value="#10151B" />
+            <Setter Property="Foreground" Value="#75694E" />
+            <Setter Property="BorderBrush" Value="#4E432C" />
+        </Style>
+    </Window.Styles>
 
-    <Style Selector="Button:disabled">
-        <Setter Property="Background" Value="#18151E" />
-        <Setter Property="Foreground" Value="#625B6C" />
-        <Setter Property="BorderBrush" Value="#292431" />
-    </Style>
+    <Grid Background="#091019" RowDefinitions="Auto,*,Auto">
 
-</Window.Styles>
+        <!-- Cinematic Portalkeeper header -->
+        <Border Grid.Row="0"
+                Background="#0A1119"
+                BorderBrush="#A06E1B"
+                BorderThickness="0,0,0,2">
+            <Grid Height="128" ClipToBounds="True">
+                <Image Source="/Assets/Calendar/calendar-banner.png"
+                       Stretch="UniformToFill"
+                       Opacity="0.92" />
 
-    <Grid
-        Background="#15131B"
-        RowDefinitions="Auto,*,Auto">
+                <!-- dark overlay keeps the title readable -->
+                <Border Background="#69040A12" />
 
-        <!-- Header -->
-        <Border
-            Grid.Row="0"
-            Background="#201C2A"
-            BorderBrush="#3A324A"
-            BorderThickness="0,0,0,1"
-            Padding="24,18">
+                <Grid Margin="24,12" ColumnDefinitions="94,*,Auto">
+                    <Border Width="78"
+                            Height="78"
+                            CornerRadius="39"
+                            BorderBrush="#B77A20"
+                            BorderThickness="2"
+                            Background="#11131A"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                        <Image Source="/Assets/portalkeeper-icon.png"
+                               Margin="4"
+                               Stretch="Uniform" />
+                    </Border>
 
-            <Grid ColumnDefinitions="72,*">
+                    <StackPanel Grid.Column="1"
+                                Margin="16,0,0,0"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="PORTALKEEPER"
+                                   FontSize="31"
+                                   FontWeight="Bold"
+                                   Foreground="#FFD96B" />
+                        <TextBlock Text="Cross-Platform Realm Launcher &amp; Addon Manager"
+                                   FontSize="14"
+                                   Foreground="#F0E4C7" />
+                        <TextBlock Text="Plan. Prepare. Play."
+                                   Margin="0,5,0,0"
+                                   FontSize="12"
+                                   Foreground="#B9A888" />
+                    </StackPanel>
 
-                <Border
-                    Width="58"
-                    Height="58"
-                    CornerRadius="8"
-                    ClipToBounds="True"
-                    VerticalAlignment="Center">
-
-                    <Image
-                        Source="/Assets/portalkeeper-icon.png"
-                        Stretch="UniformToFill" />
-
-                </Border>
-
-                <StackPanel
-                    Grid.Column="1"
-                    Margin="16,0,0,0"
-                    VerticalAlignment="Center">
-
-                    <TextBlock
-                        Text="PORTALKEEPER"
-                        FontSize="25"
-                        FontWeight="Bold"
-                        Foreground="#F3EFF8" />
-
-                    <TextBlock
-                        Text="Cross-Platform Realm Launcher &amp; Addon Manager"
-                        FontSize="13"
-                        Foreground="#AFA6BD"
-                        Margin="0,3,0,0" />
-
-                </StackPanel>
+                    <StackPanel Grid.Column="2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="ADVENTURE AWAITS"
+                                   HorizontalAlignment="Right"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#DCCAF2" />
+                        <TextBlock Text="REALM LAUNCHER"
+                                   HorizontalAlignment="Right"
+                                   FontSize="10"
+                                   Foreground="#8F7AA8" />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
-        <!-- Main Content -->
+        <!-- Main launcher workflow -->
         <ScrollViewer Grid.Row="1">
-            <StackPanel
-                Margin="32,28"
-                Spacing="18">
+            <StackPanel Margin="24,22" Spacing="18">
 
-                <!-- Realm -->
-                <Border
-                    Background="#201C2A"
-                    BorderBrush="#3A324A"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="20">
+                <!-- Realm + Client -->
+                <Grid ColumnDefinitions="0.72*,1.28*" ColumnSpacing="18">
 
+                    <!-- Realm -->
+                    <Border Grid.Column="0"
+                            Background="#0E1823"
+                            BorderBrush="#6E5426"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="18">
+                        <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Row="0"
+                                       Grid.ColumnSpan="2"
+                                       Text="REALM"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="#D5AA50" />
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="0"
+                                        Margin="0,8,10,0"
+                                        Spacing="4">
+                                <TextBlock Text="{Binding RealmName}"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#F8F0DF" />
+                                <TextBlock Text="{Binding RealmStatus}"
+                                           FontSize="13"
+                                           Foreground="#AFA28D"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1"
+                                        Grid.Column="1"
+                                        Margin="10,8,0,0"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8">
+                                <TextBlock Text="{Binding RealmStatusSymbol}"
+                                           FontSize="18"
+                                           Foreground="#D8C5EA"
+                                           HorizontalAlignment="Center" />
+                                <Button Content="CHECK AGAIN"
+                                        IsVisible="{Binding ShowRealmCheckAgain}"
+                                        Click="RealmCheckAgain_Click"
+                                        Padding="15,8" />
+                            </StackPanel>
+
+                            <Border Grid.Row="2"
+                                    Grid.ColumnSpan="2"
+                                    Margin="0,14,0,0"
+                                    Height="1"
+                                    Background="#302718" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Client -->
+                    <Border Grid.Column="1"
+                            Background="#0E1823"
+                            BorderBrush="#6E5426"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="18">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="CLIENT"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="#D5AA50" />
+                                <TextBlock Text="World of Warcraft 3.3.5a"
+                                           Margin="0,4,0,0"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="#F8F0DF" />
+                                <TextBlock Text="{Binding ClientPath}"
+                                           FontSize="12"
+                                           Foreground="#AFA28D"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ClientStatus}"
+                                           Margin="0,4,0,0"
+                                           FontSize="13"
+                                           Foreground="#D8CCBA"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1"
+                                        Margin="20,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Spacing="8">
+                                <TextBlock Text="{Binding ClientStatusSymbol}"
+                                           FontSize="18"
+                                           Foreground="#D8C5EA"
+                                           HorizontalAlignment="Center" />
+                                <Button Content="{Binding ClientButtonText}"
+                                        Click="LocateClient_Click"
+                                        Padding="18,9" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Addon management -->
+                <Border Background="#0E1823"
+                        BorderBrush="#6E5426"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="18">
                     <Grid ColumnDefinitions="*,Auto">
-
-                        <StackPanel Spacing="5">
-                            <TextBlock
-                                Text="REALM"
-                                FontSize="12"
-                                FontWeight="Bold"
-                                Foreground="#AFA6BD" />
-
-                            <TextBlock
-                                Text="{Binding RealmName}"
-                                FontSize="18"
-                                FontWeight="SemiBold"
-                                Foreground="#F3EFF8" />
-
-                            <TextBlock
-                                Text="{Binding RealmStatus}"
-                                FontSize="13"
-                                Foreground="#90879D" />
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="ADDONS"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="#D5AA50" />
+                            <TextBlock Text="Addon Management"
+                                       Margin="0,4,0,0"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Foreground="#F8F0DF" />
+                            <TextBlock Text="{Binding AddonStatus}"
+                                       FontSize="13"
+                                       Foreground="#AFA28D"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <StackPanel
-                            Grid.Column="1"
-                            Margin="20,0,0,0"
-                            Spacing="10"
-                            VerticalAlignment="Center">
-
-                            <TextBlock
-                                Text="{Binding RealmStatusSymbol}"
-                                Foreground="#B8A6CC"
-                                HorizontalAlignment="Center" />
-
-                            <Button
-                                Content="CHECK AGAIN"
-                                IsVisible="{Binding ShowRealmCheckAgain}"
-                                Click="RealmCheckAgain_Click"
-                                Padding="18,9" />
-
+                        <StackPanel Grid.Column="1"
+                                    Margin="24,0,0,0"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center"
+                                    Spacing="12">
+                            <TextBlock Text="{Binding AddonStatusSymbol}"
+                                       FontSize="18"
+                                       Foreground="#D8C5EA"
+                                       VerticalAlignment="Center" />
+                            <Button Content="MANAGE ADDONS"
+                                    Click="ManageAddons_Click"
+                                    Padding="20,10" />
                         </StackPanel>
-
                     </Grid>
                 </Border>
 
-                <!-- Client -->
-                <Border
-                    Background="#201C2A"
-                    BorderBrush="#3A324A"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="20">
-
-                    <Grid
-                        ColumnDefinitions="*,Auto"
-                        RowDefinitions="Auto,Auto">
-
-                        <StackPanel
-                            Grid.Row="0"
-                            Grid.Column="0"
-                            Spacing="5">
-
-                            <TextBlock
-                                Text="CLIENT"
-                                FontSize="12"
-                                FontWeight="Bold"
-                                Foreground="#AFA6BD" />
-
-                            <TextBlock
-                                Text="World of Warcraft 3.3.5a"
-                                FontSize="18"
-                                FontWeight="SemiBold"
-                                Foreground="#F3EFF8" />
-
-                            <TextBlock
-                                Text="{Binding ClientPath}"
-                                FontSize="13"
-                                Foreground="#90879D"
-                                TextWrapping="Wrap" />
-
-                            <TextBlock
-                                Text="{Binding ClientStatus}"
-                                FontSize="13"
-                                Foreground="#C3B8CF"
-                                TextWrapping="Wrap"
-                                Margin="0,4,0,0" />
-
+                <!-- Utility strip -->
+                <Border Background="#0A141E"
+                        BorderBrush="#40331E"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="14">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="READY TO PLAY"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#C99B3D" />
+                            <TextBlock Text="Review realm, client, and addon status above, then enter the realm."
+                                       FontSize="12"
+                                       Foreground="#8F8577" />
                         </StackPanel>
 
-                        <StackPanel
-                            Grid.Row="0"
-                            Grid.Column="1"
-                            Margin="20,0,0,0"
-                            Spacing="10"
-                            VerticalAlignment="Center">
-
-                            <TextBlock
-                                Text="{Binding ClientStatusSymbol}"
-                                Foreground="#B8A6CC"
-                                HorizontalAlignment="Center" />
-
-                            <Button
-                                Content="{Binding ClientButtonText}"
-                                Click="LocateClient_Click"
-                                Padding="18,9" />
-
-                        </StackPanel>
-
+                        <Button Grid.Column="1"
+                                Content="REALM CALENDAR"
+                                Click="Calendar_Click"
+                                IsVisible="{Binding CalendarAvailable}"
+                                Padding="17,9" />
+                        <Button Grid.Column="2"
+                                Content="SETTINGS"
+                                Click="Settings_Click"
+                                Padding="17,9" />
                     </Grid>
                 </Border>
 
-                <!-- Addons -->
-                <Border
-                    Background="#201C2A"
-                    BorderBrush="#3A324A"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="20">
-
-                    <Grid ColumnDefinitions="*,Auto">
-
-                        <StackPanel Spacing="5">
-
-                            <TextBlock
-                                Text="ADDONS"
-                                FontSize="12"
+                <!-- Primary launch action -->
+                <Border BorderBrush="#B77A20"
+                        BorderThickness="1"
+                        CornerRadius="5"
+                        Padding="4"
+                        Background="#261B0B"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Spacing="7">
+                        <Button Content="{Binding EnterRealmButtonText}"
+                                IsEnabled="{Binding CanEnterRealm}"
+                                Click="EnterRealm_Click"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                FontSize="21"
                                 FontWeight="Bold"
-                                Foreground="#AFA6BD" />
-
-                            <TextBlock
-                                Text="Addon Management"
-                                FontSize="18"
-                                FontWeight="SemiBold"
-                                Foreground="#F3EFF8" />
-
-                            <TextBlock
-                                Text="{Binding AddonStatus}"
-                                FontSize="13"
-                                Foreground="#90879D" />
-                                
-                            <Button
-							    Content="MANAGE ADDONS"
-							    Click="ManageAddons_Click"
-							    Padding="18,9" />
-
-                        </StackPanel>
-
-                        <TextBlock
-                            Grid.Column="1"
-                            Text="{Binding AddonStatusSymbol}"
-                            Foreground="#B8A6CC"
-                            VerticalAlignment="Center" />
-
-                    </Grid>
+                                Padding="18,15"
+                                Background="#1A2631"
+                                BorderBrush="#D09B32"
+                                BorderThickness="1" />
+                        <TextBlock Text="{Binding LaunchStatus}"
+                                   Margin="10,0,10,4"
+                                   FontSize="12"
+                                   Foreground="#918473"
+                                   HorizontalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
                 </Border>
-
-                <!-- Launch -->
-                <StackPanel Spacing="8" Margin="0,8,0,0">
-                    <Button
-                        Content="{Binding EnterRealmButtonText}"
-                        IsEnabled="{Binding CanEnterRealm}"
-                        Click="EnterRealm_Click"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        FontSize="18"
-                        FontWeight="SemiBold"
-                        Padding="18" />
-
-                    <TextBlock
-                        Text="{Binding LaunchStatus}"
-                        FontSize="12"
-                        Foreground="#80788A"
-                        HorizontalAlignment="Center"
-                        TextWrapping="Wrap" />
-                </StackPanel>
 
             </StackPanel>
         </ScrollViewer>
 
         <!-- Footer -->
-        <Border
-            Grid.Row="2"
-            Background="#201C2A"
-            BorderBrush="#3A324A"
-            BorderThickness="0,1,0,0"
-            Padding="24,12">
-
+        <Border Grid.Row="2"
+                Background="#081019"
+                BorderBrush="#5B431B"
+                BorderThickness="0,1,0,0"
+                Padding="24,10">
             <Grid ColumnDefinitions="*,Auto">
-
-                <TextBlock
-                    Text="Portalkeeper 0.1.0"
-                    Foreground="#80788A"
-                    VerticalAlignment="Center" />
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Content="CALENDAR" Click="Calendar_Click" IsVisible="{Binding CalendarAvailable}" Padding="14,6" />
-                    <Button Content="SETTINGS" Click="Settings_Click" Padding="14,6" />
-                </StackPanel>
-
+                <TextBlock Text="Portalkeeper 0.1.0"
+                           Foreground="#776E62"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="SAME WORLD. MORE TO EXPLORE."
+                           Foreground="#6F627E"
+                           FontSize="10"
+                           VerticalAlignment="Center" />
             </Grid>
-
         </Border>
 
     </Grid>
