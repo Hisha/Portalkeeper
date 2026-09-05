@@ -92,6 +92,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void Armory_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        var result = await viewModel.LoadArmoryAsync();
+        if (result.Feed is null)
+        {
+            var error = new Window
+            {
+                Title = "Realm Armory", Width = 520, Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new TextBlock { Text = result.Status, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Avalonia.Thickness(24) }
+            };
+            await error.ShowDialog(this);
+            return;
+        }
+
+        var window = new ArmoryWindow
+        {
+            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService)
+        };
+        await window.ShowDialog(this);
+    }
+
     private async void News_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)

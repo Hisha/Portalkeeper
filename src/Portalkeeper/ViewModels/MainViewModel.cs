@@ -25,6 +25,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly RealmHealthService _realmHealthService;
     private readonly RealmCalendarService _realmCalendarService;
     private readonly RealmNewsService _realmNewsService;
+    private readonly RealmArmoryService _realmArmoryService;
     private readonly SemaphoreSlim _addonRefreshLock = new(1, 1);
     private readonly SemaphoreSlim _realmHealthLock = new(1, 1);
 
@@ -76,6 +77,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _realmHealthService = new RealmHealthService();
         _realmCalendarService = new RealmCalendarService();
         _realmNewsService = new RealmNewsService();
+        _realmArmoryService = new RealmArmoryService();
 
         LoadSavedClient();
         LoadRealmConfiguration();
@@ -291,6 +293,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return new RealmCalendarLoadResult(null, false, "This realm does not provide a calendar feed.");
         return await _realmCalendarService.LoadAsync(_realmInfo.CalendarUrl);
     }
+
+    public bool ArmoryAvailable => RealmConfigured && !string.IsNullOrWhiteSpace(_realmInfo!.ArmoryUrl);
+
+    public async Task<RealmArmoryIndexLoadResult> LoadArmoryAsync()
+    {
+        if (!ArmoryAvailable || _realmInfo is null)
+            return new RealmArmoryIndexLoadResult(null, false, "This realm does not provide an armory feed.");
+        return await _realmArmoryService.LoadIndexAsync(_realmInfo.ArmoryUrl);
+    }
+
+    public RealmArmoryService ArmoryService => _realmArmoryService;
+    public string ArmoryUrl => _realmInfo?.ArmoryUrl ?? string.Empty;
 
     public bool NewsAvailable => RealmConfigured && !string.IsNullOrWhiteSpace(_realmInfo!.NewsUrl);
 
@@ -735,6 +749,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RealmStatusSymbol));
         OnPropertyChanged(nameof(CalendarAvailable));
         OnPropertyChanged(nameof(NewsAvailable));
+        OnPropertyChanged(nameof(ArmoryAvailable));
         OnPropertyChanged(nameof(CanEnterRealm));
         UpdateLaunchReadinessStatus();
     }

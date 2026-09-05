@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Portalkeeper.ViewModels"
+        x:Class="Portalkeeper.Views.ArmoryWindow"
+        x:DataType="vm:ArmoryViewModel"
+        Title="Realm Armory"
+        Width="1120" Height="760"
+        MinWidth="900" MinHeight="620"
+        WindowStartupLocation="CenterOwner"
+        Background="#081019">
+    <Grid RowDefinitions="155,*,Auto">
+        <Grid Grid.Row="0">
+            <Image Source="/Assets/Calendar/calendar-banner.png" Stretch="UniformToFill" Opacity="0.72" />
+            <Border Background="#72050B12" />
+            <StackPanel Margin="34,24" VerticalAlignment="Center">
+                <TextBlock Text="REALM ARMORY" FontSize="32" FontWeight="Bold" Foreground="#F0D28A" />
+                <TextBlock Text="Heroes, adventurers, and denizens of the realm" FontSize="15" Foreground="#D7C5A0" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="22" ColumnDefinitions="360,*" ColumnSpacing="18">
+            <Border Background="#101B25" BorderBrush="#765522" BorderThickness="1" CornerRadius="5" Padding="14">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+                    <TextBox Grid.Row="0" Watermark="Search characters..." Text="{Binding SearchText}" />
+                    <ComboBox Grid.Row="1" ItemsSource="{Binding Filters}" SelectedIndex="{Binding FilterIndex}" />
+                    <ListBox Grid.Row="2" ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedSummary}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10" Margin="0,2" BorderBrush="#40331E" BorderThickness="0,0,0,1">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold" Foreground="#E6D5B4" />
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#9E9485" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{Binding TypeLabel}" FontSize="10" FontWeight="Bold" Foreground="#B68ADB" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="#101B25" BorderBrush="#765522" BorderThickness="1" CornerRadius="5" Padding="22">
+                <ScrollViewer>
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="Select a character from the roster." IsVisible="{Binding !HasSelectedCharacter}" Foreground="#A99B86" FontSize="17" />
+                        <StackPanel IsVisible="{Binding HasSelectedCharacter}" Spacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SelectedCharacter.Name}" FontSize="29" FontWeight="Bold" Foreground="#F0D28A" />
+                                    <TextBlock Text="{Binding SelectedCharacter.Subtitle}" FontSize="16" Foreground="#C8B99C" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#251A35" BorderBrush="#8C61B5" BorderThickness="1" CornerRadius="3" Padding="12,5" VerticalAlignment="Center" IsVisible="{Binding SelectedCharacter.Playerbot}">
+                                    <TextBlock Text="PLAYERBOT" Foreground="#D7B4F3" FontWeight="Bold" />
+                                </Border>
+                            </Grid>
+                            <Border Height="1" Background="#765522" Margin="0,10" />
+                            <TextBlock Text="EQUIPMENT" FontSize="14" FontWeight="Bold" Foreground="#C99B3D" />
+                            <ItemsControl ItemsSource="{Binding SelectedCharacter.Equipment}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0B151E" BorderBrush="#332A1D" BorderThickness="1" CornerRadius="3" Padding="11" Margin="0,3">
+                                            <Grid ColumnDefinitions="125,*,Auto">
+                                                <TextBlock Text="{Binding SlotName}" Foreground="#948A7C" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Bold" Foreground="#E3D5BD" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="11" Foreground="#8E8579" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Background="#0A141E" BorderBrush="#40331E" BorderThickness="0,1,0,0" Padding="22,10">
+            <TextBlock Text="{Binding Status}" Foreground="#8F8577" FontSize="12" />
+        </Border>
+    </Grid>
+</Window>
