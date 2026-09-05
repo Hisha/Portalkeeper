@@ -212,12 +212,31 @@
                                    FontSize="11"
                                    FontWeight="Bold"
                                    Foreground="#D5AA50" />
-                        <CheckBox IsChecked="{Binding HidePortalkeeperWhileGameRuns, Mode=TwoWay}"
-                                  Content="Hide Portalkeeper while World of Warcraft is running" />
-                        <TextBlock Text="Portalkeeper will return when the game closes."
-                                   Margin="26,0,0,0"
-                                   Foreground="#7F776B"
-                                   FontSize="11" />
+                        <Border Background="#0E1B27"
+                                BorderBrush="#3B4B58"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12,10">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                                <CheckBox Grid.RowSpan="2"
+                                          IsChecked="{Binding HidePortalkeeperWhileGameRuns, Mode=TwoWay}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Hide Portalkeeper while World of Warcraft is running"
+                                           Foreground="#F2E7D0"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1"
+                                           Grid.Column="1"
+                                           Text="Portalkeeper will automatically return when the game closes."
+                                           Margin="0,4,0,0"
+                                           Foreground="#8E9AA5"
+                                           FontSize="11"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>
