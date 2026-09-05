@@ -110,8 +110,7 @@
 
                     <ListBox Grid.Row="2"
                              ItemsSource="{Binding Articles}"
-                             SelectedItem="{Binding SelectedArticle}"
-                             HorizontalContentAlignment="Stretch">
+                             SelectedItem="{Binding SelectedArticle}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:RealmNewsArticle">
                                 <Border Background="#101E2B"
