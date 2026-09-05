@@ -24,6 +24,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly RealmLaunchService _realmLaunchService;
     private readonly RealmHealthService _realmHealthService;
     private readonly RealmCalendarService _realmCalendarService;
+    private readonly RealmNewsService _realmNewsService;
     private readonly SemaphoreSlim _addonRefreshLock = new(1, 1);
     private readonly SemaphoreSlim _realmHealthLock = new(1, 1);
 
@@ -74,6 +75,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _realmLaunchService = new RealmLaunchService();
         _realmHealthService = new RealmHealthService();
         _realmCalendarService = new RealmCalendarService();
+        _realmNewsService = new RealmNewsService();
 
         LoadSavedClient();
         LoadRealmConfiguration();
@@ -288,6 +290,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (!CalendarAvailable || _realmInfo is null)
             return new RealmCalendarLoadResult(null, false, "This realm does not provide a calendar feed.");
         return await _realmCalendarService.LoadAsync(_realmInfo.CalendarUrl);
+    }
+
+    public bool NewsAvailable => RealmConfigured && !string.IsNullOrWhiteSpace(_realmInfo!.NewsUrl);
+
+    public async Task<RealmNewsLoadResult> LoadNewsAsync()
+    {
+        if (!NewsAvailable || _realmInfo is null)
+            return new RealmNewsLoadResult(null, false, "This realm does not provide a news feed.");
+        return await _realmNewsService.LoadAsync(_realmInfo.NewsUrl);
     }
 
     // ---------------------------------------------------------
@@ -723,6 +734,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ShowRealmCheckAgain));
         OnPropertyChanged(nameof(RealmStatusSymbol));
         OnPropertyChanged(nameof(CalendarAvailable));
+        OnPropertyChanged(nameof(NewsAvailable));
         OnPropertyChanged(nameof(CanEnterRealm));
         UpdateLaunchReadinessStatus();
     }

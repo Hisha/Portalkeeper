@@ -2,7 +2,7 @@
 
 Portalkeeper is an independent, cross-platform realm launcher and addon manager for **World of Warcraft 3.3.5a (build 12340)**. It is designed to make a private realm easier to use without distributing or modifying the game client itself.
 
-Portalkeeper can validate a 3.3.5a client, apply the selected realm's `realmlist.wtf`, check realm availability, manage required/recommended/personal addons, install and update GitHub-hosted addons, and launch World of Warcraft on Windows or Linux.
+Portalkeeper can validate a 3.3.5a client, apply the selected realm's `realmlist.wtf`, check realm availability, manage required/recommended/personal addons, install and update GitHub-hosted addons, display realm news and the public realm calendar, and launch World of Warcraft on Windows or Linux.
 
 > Portalkeeper is an independent, community-developed project. It is not affiliated with or endorsed by AzerothCore, the AzerothCore development team, Blizzard Entertainment, or World of Warcraft.
 
@@ -24,7 +24,9 @@ Portalkeeper intentionally keeps its scope narrow:
 - backs up an existing managed addon before replacing it;
 - preserves unrelated addons and WoW `WTF`/SavedVariables data;
 - launches WoW directly on Windows and through Wine on Linux;
-- can hide while WoW is running and restore when the game exits.
+- can hide while WoW is running and restore when the game exits;
+- can consume a schema-v1 Realm News feed from `mod-realm-news` with local cache fallback;
+- can consume the public calendar feed from `mod-realm-calendar`.
 
 Portalkeeper does **not** download or distribute World of Warcraft, store account credentials, or modify AzerothCore server code.
 
@@ -43,6 +45,7 @@ WorldPort=8085
 ManifestURL=
 NewsURL=
 StatusURL=
+CalendarURL=
 ```
 
 `AuthPort` and `WorldPort` are optional and default to `3724` and `8085`.
@@ -50,6 +53,12 @@ StatusURL=
 Place the private realm file either beside the Portalkeeper executable or, preferably, in Portalkeeper's `config/` folder. Portalkeeper deliberately ignores `example.realm.conf`. If no usable realm file is present, the Realm card explains what to do and provides **CHECK AGAIN**, so a restart is not required after adding the file.
 
 Private `*.realm.conf` files are ignored by Git and should not be committed to a public repository.
+
+### Realm News and Calendar
+
+`NewsURL` and `CalendarURL` are optional. When present, Portalkeeper exposes **REALM NEWS** and **REALM CALENDAR** from the main launcher. Both consumers cache the last good JSON response so temporary web-server outages do not erase previously downloaded information.
+
+`NewsURL` expects the schema-v1 feed published by `mod-realm-news`; `CalendarURL` expects the schema-v1 feed from `mod-realm-calendar`. Keep private feed URLs in the private `*.realm.conf`, not in the public example file.
 
 ## Realm addon policy
 

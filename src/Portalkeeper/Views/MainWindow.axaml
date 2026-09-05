@@ -258,7 +258,7 @@
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="14">
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="READY TO PLAY"
                                        FontSize="11"
@@ -270,11 +270,16 @@
                         </StackPanel>
 
                         <Button Grid.Column="1"
+                                Content="REALM NEWS"
+                                Click="News_Click"
+                                IsVisible="{Binding NewsAvailable}"
+                                Padding="17,9" />
+                        <Button Grid.Column="2"
                                 Content="REALM CALENDAR"
                                 Click="Calendar_Click"
                                 IsVisible="{Binding CalendarAvailable}"
                                 Padding="17,9" />
-                        <Button Grid.Column="2"
+                        <Button Grid.Column="3"
                                 Content="SETTINGS"
                                 Click="Settings_Click"
                                 Padding="17,9" />

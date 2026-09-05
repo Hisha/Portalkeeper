@@ -92,6 +92,38 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void News_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        var result = await viewModel.LoadNewsAsync();
+        if (result.Feed is null)
+        {
+            var error = new Window
+            {
+                Title = "Realm News",
+                Width = 520,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new TextBlock
+                {
+                    Text = result.Status,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(24)
+                }
+            };
+            await error.ShowDialog(this);
+            return;
+        }
+
+        var window = new NewsWindow
+        {
+            DataContext = new NewsViewModel(result.Feed, result.Status)
+        };
+        await window.ShowDialog(this);
+    }
+
     private async void Calendar_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)
