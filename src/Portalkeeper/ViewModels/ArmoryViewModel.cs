@@ -36,18 +36,35 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
     public string Status { get => _status; private set { _status = value; OnPropertyChanged(); } }
     public bool LoadingProfile { get => _loadingProfile; private set { _loadingProfile = value; OnPropertyChanged(); } }
     public bool HasSelectedCharacter => SelectedCharacter is not null;
+    public bool HasNoSelectedCharacter => SelectedCharacter is null;
     public IReadOnlyList<string> Filters { get; } = new[] { "All Characters", "Players", "Playerbots" };
+    public int TotalCharacters => _all.Count;
+    public int TotalPlayers => _all.Count(x => !x.Playerbot);
+    public int TotalPlayerbots => _all.Count(x => x.Playerbot);
+    public string RosterSummary => $"{Characters.Count:N0} shown  •  {_all.Count:N0} total";
 
     public string SearchText
     {
         get => _searchText;
-        set { if (_searchText == value) return; _searchText = value; OnPropertyChanged(); ApplyFilter(); }
+        set
+        {
+            if (_searchText == value) return;
+            _searchText = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
     }
 
     public int FilterIndex
     {
         get => _filterIndex;
-        set { if (_filterIndex == value) return; _filterIndex = value; OnPropertyChanged(); ApplyFilter(); }
+        set
+        {
+            if (_filterIndex == value) return;
+            _filterIndex = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
     }
 
     public ArmoryCharacterSummary? SelectedSummary
@@ -58,26 +75,40 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
             if (ReferenceEquals(_selectedSummary, value)) return;
             _selectedSummary = value;
             OnPropertyChanged();
-            if (value is not null) _ = LoadProfileAsync(value.Id);
+            if (value is not null)
+                _ = LoadProfileAsync(value.Id);
         }
     }
 
     public ArmoryCharacter? SelectedCharacter
     {
         get => _selectedCharacter;
-        private set { _selectedCharacter = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasSelectedCharacter)); }
+        private set
+        {
+            _selectedCharacter = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasSelectedCharacter));
+            OnPropertyChanged(nameof(HasNoSelectedCharacter));
+        }
     }
 
     private void ApplyFilter()
     {
         var query = _all.AsEnumerable();
-        if (_filterIndex == 1) query = query.Where(x => !x.Playerbot);
-        else if (_filterIndex == 2) query = query.Where(x => x.Playerbot);
+
+        if (_filterIndex == 1)
+            query = query.Where(x => !x.Playerbot);
+        else if (_filterIndex == 2)
+            query = query.Where(x => x.Playerbot);
+
         if (!string.IsNullOrWhiteSpace(_searchText))
             query = query.Where(x => x.Name.Contains(_searchText.Trim(), StringComparison.OrdinalIgnoreCase));
 
         Characters.Clear();
-        foreach (var character in query) Characters.Add(character);
+        foreach (var character in query)
+            Characters.Add(character);
+
+        OnPropertyChanged(nameof(RosterSummary));
     }
 
     private async Task LoadProfileAsync(ulong id)
@@ -86,13 +117,22 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         try
         {
             var result = await _service.LoadProfileAsync(_indexUrl, id);
-            SelectedCharacter = result.Profile?.Character;
-            Status = result.Status;
+
+            // Do not let a slower earlier request replace a newer selection.
+            if (_selectedSummary?.Id == id)
+            {
+                SelectedCharacter = result.Profile?.Character;
+                Status = result.Status;
+            }
         }
-        finally { LoadingProfile = false; }
+        finally
+        {
+            LoadingProfile = false;
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
