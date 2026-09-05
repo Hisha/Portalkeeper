@@ -2,108 +2,162 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     x:Class="Portalkeeper.Views.AddAddonWindow"
-    Width="620"
-    Height="480"
-    MinWidth="560"
-    MinHeight="430"
+    Width="700"
+    Height="520"
+    MinWidth="620"
+    MinHeight="460"
     Title="Add Personal Addon"
     WindowStartupLocation="CenterOwner"
-    Background="#15121B">
+    Background="#091019">
 
     <Window.Styles>
         <Style Selector="Button">
-            <Setter Property="Background" Value="#332B42" />
-            <Setter Property="Foreground" Value="#F3EFF8" />
-            <Setter Property="BorderBrush" Value="#554669" />
+            <Setter Property="Background" Value="#111A24" />
+            <Setter Property="Foreground" Value="#F6D477" />
+            <Setter Property="BorderBrush" Value="#9A6B1E" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="5" />
-            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button:pointerover">
-            <Setter Property="Background" Value="#493A5E" />
-            <Setter Property="BorderBrush" Value="#75608E" />
+            <Setter Property="Background" Value="#1B2A38" />
+            <Setter Property="BorderBrush" Value="#D2A43A" />
+            <Setter Property="Foreground" Value="#FFE9A8" />
         </Style>
         <Style Selector="Button:disabled">
-            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Opacity" Value="0.42" />
         </Style>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#1B1722" />
-            <Setter Property="Foreground" Value="#F3EFF8" />
-            <Setter Property="BorderBrush" Value="#554669" />
+            <Setter Property="Background" Value="#0E1823" />
+            <Setter Property="Foreground" Value="#F8F0DF" />
+            <Setter Property="BorderBrush" Value="#6E5426" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="11,8" />
         </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto">
-        <Border Grid.Row="0" Background="#211B2A" BorderBrush="#3A3047"
-                BorderThickness="0,0,0,1" Padding="22,18">
-            <StackPanel Spacing="4">
-                <TextBlock Text="ADD PERSONAL ADDON" Foreground="#F4F0F8"
-                           FontSize="22" FontWeight="Bold" />
-                <TextBlock Text="Paste a GitHub repository URL and Portalkeeper will discover the addon."
-                           Foreground="#A99CB8" FontSize="13" />
-            </StackPanel>
+        <Border Grid.Row="0"
+                Background="#0A1119"
+                BorderBrush="#A06E1B"
+                BorderThickness="0,0,0,2">
+            <Grid Height="96" ClipToBounds="True">
+                <Image Source="/Assets/Calendar/calendar-banner.png"
+                       Stretch="UniformToFill"
+                       Opacity="0.84" />
+                <Border Background="#79040A12" />
+                <Grid Margin="20,10" ColumnDefinitions="58,*">
+                    <Border Width="50" Height="50"
+                            CornerRadius="25"
+                            BorderBrush="#B77A20"
+                            BorderThickness="2"
+                            Background="#11131A"
+                            VerticalAlignment="Center">
+                        <Image Source="/Assets/portalkeeper-icon.png"
+                               Margin="3"
+                               Stretch="Uniform" />
+                    </Border>
+                    <StackPanel Grid.Column="1"
+                                Margin="14,0,0,0"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="ADD PERSONAL ADDON"
+                                   Foreground="#FFD96B"
+                                   FontSize="22"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="Discover an addon from a GitHub repository"
+                                   Foreground="#E8DDC8"
+                                   FontSize="12" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
         </Border>
 
         <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="20" Spacing="14">
-                <TextBlock Text="GITHUB REPOSITORY URL"
-                           Foreground="#A99CB8" FontSize="11" FontWeight="SemiBold" />
-
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                    <TextBox x:Name="GitUrlTextBox"
-                             PlaceholderText="https://github.com/owner/repository" />
-                    <Button Grid.Column="1" Content="DISCOVER" Click="Discover_Click" />
-                </Grid>
-
-                <TextBlock x:Name="StatusTextBlock"
-                           Text="Portalkeeper will inspect the repository without changing your AddOns folder."
-                           Foreground="#81768D" FontSize="12"
-                           TextWrapping="Wrap" />
+            <StackPanel Margin="20,18" Spacing="14">
+                <Border Background="#0E1823"
+                        BorderBrush="#6E5426"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="GITHUB REPOSITORY URL"
+                                   Foreground="#D5AA50"
+                                   FontSize="11"
+                                   FontWeight="Bold" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBox x:Name="GitUrlTextBox"
+                                     PlaceholderText="https://github.com/owner/repository" />
+                            <Button Grid.Column="1"
+                                    Content="DISCOVER"
+                                    Click="Discover_Click"
+                                    Padding="18,8" />
+                        </Grid>
+                        <TextBlock x:Name="StatusTextBlock"
+                                   Text="Portalkeeper will inspect the repository without changing your AddOns folder."
+                                   Foreground="#8F8577"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
 
                 <Border x:Name="PreviewBorder"
                         IsVisible="False"
                         Padding="16"
-                        Background="#211C29"
-                        BorderBrush="#3E334C"
+                        Background="#0E1823"
+                        BorderBrush="#6E5426"
                         BorderThickness="1"
-                        CornerRadius="6">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="FOUND ADDON" Foreground="#A99CB8"
-                                   FontSize="11" FontWeight="SemiBold" />
+                        CornerRadius="4">
+                    <StackPanel Spacing="9">
+                        <TextBlock Text="FOUND ADDON"
+                                   Foreground="#D5AA50"
+                                   FontSize="11"
+                                   FontWeight="Bold" />
                         <TextBlock x:Name="PreviewNameTextBlock"
-                                   Foreground="#F2EDF6" FontSize="18"
+                                   Foreground="#F8F0DF"
+                                   FontSize="19"
                                    FontWeight="SemiBold" />
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto"
-                              ColumnSpacing="16" RowSpacing="5">
-                            <TextBlock Text="Version" Foreground="#81768D" />
-                            <TextBlock Grid.Column="1" x:Name="PreviewVersionTextBlock"
-                                       Foreground="#C8BCD4" />
-                            <TextBlock Grid.Row="1" Text="Addon folder" Foreground="#81768D" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PreviewFolderTextBlock"
-                                       Foreground="#C8BCD4" />
-                            <TextBlock Grid.Row="2" Text="Branch" Foreground="#81768D" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PreviewBranchTextBlock"
-                                       Foreground="#C8BCD4" />
-                            <TextBlock Grid.Row="3" Text="Repository path" Foreground="#81768D" />
+                        <Border Height="1" Background="#2D281B" Margin="0,2" />
+                        <Grid ColumnDefinitions="120,*"
+                              RowDefinitions="Auto,Auto,Auto,Auto"
+                              ColumnSpacing="16"
+                              RowSpacing="6">
+                            <TextBlock Text="Version" Foreground="#807666" />
+                            <TextBlock Grid.Column="1" x:Name="PreviewVersionTextBlock" Foreground="#D8CCBA" />
+                            <TextBlock Grid.Row="1" Text="Addon folder" Foreground="#807666" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PreviewFolderTextBlock" Foreground="#D8CCBA" />
+                            <TextBlock Grid.Row="2" Text="Branch" Foreground="#807666" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PreviewBranchTextBlock" Foreground="#D8CCBA" />
+                            <TextBlock Grid.Row="3" Text="Repository path" Foreground="#807666" />
                             <TextBlock Grid.Row="3" Grid.Column="1" x:Name="PreviewPathTextBlock"
-                                       Foreground="#C8BCD4" TextWrapping="Wrap" />
+                                       Foreground="#D8CCBA" TextWrapping="Wrap" />
                         </Grid>
                     </StackPanel>
                 </Border>
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="2" Background="#211B2A" BorderBrush="#3A3047"
-                BorderThickness="0,1,0,0" Padding="18,14">
+        <Border Grid.Row="2"
+                Background="#081019"
+                BorderBrush="#5B431B"
+                BorderThickness="0,1,0,0"
+                Padding="18,12">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="Personal addons never affect ENTER REALM readiness."
-                           Foreground="#81768D" FontSize="11"
+                           Foreground="#756B5C"
+                           FontSize="11"
                            VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                    <Button x:Name="AddOnlyButton" Content="ADD ONLY"
-                            IsEnabled="False" Click="AddOnly_Click" />
-                    <Button x:Name="AddInstallButton" Content="ADD &amp; INSTALL"
-                            IsEnabled="False" Click="AddInstall_Click" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9">
+                    <Button x:Name="AddOnlyButton"
+                            Content="ADD ONLY"
+                            IsEnabled="False"
+                            Click="AddOnly_Click" />
+                    <Button x:Name="AddInstallButton"
+                            Content="ADD &amp; INSTALL"
+                            IsEnabled="False"
+                            Click="AddInstall_Click" />
                     <Button Content="CANCEL" Click="Cancel_Click" />
                 </StackPanel>
             </Grid>

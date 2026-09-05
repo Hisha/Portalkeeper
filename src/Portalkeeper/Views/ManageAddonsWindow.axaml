@@ -5,95 +5,203 @@
     xmlns:models="using:Portalkeeper.Models"
     x:Class="Portalkeeper.Views.ManageAddonsWindow"
     x:DataType="vm:MainViewModel"
-    Width="800"
-    Height="540"
-    MinWidth="700"
-    MinHeight="440"
+    Width="900"
+    Height="620"
+    MinWidth="780"
+    MinHeight="520"
     Title="Manage Addons"
     WindowStartupLocation="CenterOwner"
-    Background="#15121B">
+    Background="#091019">
 
     <Window.Styles>
         <Style Selector="Button">
-            <Setter Property="Background" Value="#332B42" />
-            <Setter Property="Foreground" Value="#F3EFF8" />
-            <Setter Property="BorderBrush" Value="#554669" />
+            <Setter Property="Background" Value="#111A24" />
+            <Setter Property="Foreground" Value="#F6D477" />
+            <Setter Property="BorderBrush" Value="#9A6B1E" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="5" />
-            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button:pointerover">
-            <Setter Property="Background" Value="#493A5E" />
-            <Setter Property="BorderBrush" Value="#75608E" />
+            <Setter Property="Background" Value="#1B2A38" />
+            <Setter Property="BorderBrush" Value="#D2A43A" />
+            <Setter Property="Foreground" Value="#FFE9A8" />
         </Style>
         <Style Selector="Button:pressed">
-            <Setter Property="Background" Value="#292234" />
+            <Setter Property="Background" Value="#0C131B" />
         </Style>
         <Style Selector="Button:disabled">
-            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Opacity" Value="0.42" />
         </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
-        <Border Grid.Row="0" Background="#211B2A" BorderBrush="#3A3047"
-                BorderThickness="0,0,0,1" Padding="22,18">
-            <StackPanel Spacing="4">
-                <TextBlock Text="MANAGE ADDONS" Foreground="#F4F0F8"
-                           FontSize="22" FontWeight="Bold" />
-                <TextBlock Text="Portalkeeper-managed addons for this realm"
-                           Foreground="#A99CB8" FontSize="13" />
-            </StackPanel>
-        </Border>
+        <!-- Cinematic header -->
+        <Border Grid.Row="0"
+                Background="#0A1119"
+                BorderBrush="#A06E1B"
+                BorderThickness="0,0,0,2">
+            <Grid Height="108" ClipToBounds="True">
+                <Image Source="/Assets/Calendar/calendar-banner.png"
+                       Stretch="UniformToFill"
+                       Opacity="0.86" />
+                <Border Background="#77040A12" />
 
-        <Border Grid.Row="1" Margin="18,18,18,8" Padding="14"
-                Background="#211C29" BorderBrush="#3E334C"
-                BorderThickness="1" CornerRadius="6">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="{Binding AddonStatus}" Foreground="#C8BCD4"
-                           VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="{Binding AddonStatusSymbol}"
-                           Foreground="#C8B0E5" VerticalAlignment="Center" />
+                <Grid Margin="20,10" ColumnDefinitions="68,*,Auto">
+                    <Border Width="58"
+                            Height="58"
+                            CornerRadius="29"
+                            BorderBrush="#B77A20"
+                            BorderThickness="2"
+                            Background="#11131A"
+                            VerticalAlignment="Center">
+                        <Image Source="/Assets/portalkeeper-icon.png"
+                               Margin="3"
+                               Stretch="Uniform" />
+                    </Border>
+                    <StackPanel Grid.Column="1"
+                                Margin="14,0,0,0"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="MANAGE ADDONS"
+                                   Foreground="#FFD96B"
+                                   FontSize="25"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="Portalkeeper-managed addons for this realm"
+                                   Foreground="#E8DDC8"
+                                   FontSize="13" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Right"
+                                Spacing="2">
+                        <TextBlock Text="PORTALKEEPER"
+                                   HorizontalAlignment="Right"
+                                   Foreground="#DCCAF2"
+                                   FontSize="12"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="KEEP YOUR UI CURRENT"
+                                   HorizontalAlignment="Right"
+                                   Foreground="#8F7AA8"
+                                   FontSize="9" />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
+        <!-- Summary strip -->
+        <Border Grid.Row="1"
+                Margin="18,16,18,8"
+                Background="#0E1823"
+                BorderBrush="#6E5426"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Border Width="34" Height="34"
+                        CornerRadius="17"
+                        Background="#172330"
+                        BorderBrush="#806124"
+                        BorderThickness="1">
+                    <TextBlock Text="A"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#F6D477"
+                               FontWeight="Bold" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="ADDON STATUS"
+                               Foreground="#D5AA50"
+                               FontSize="10"
+                               FontWeight="Bold" />
+                    <TextBlock Text="{Binding AddonStatus}"
+                               Foreground="#D8CCBA"
+                               FontSize="13"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock Grid.Column="2"
+                           Text="{Binding AddonStatusSymbol}"
+                           Foreground="#D8C5EA"
+                           FontSize="16"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Addon cards -->
         <ScrollViewer Grid.Row="2" Margin="18,8,18,12">
             <ItemsControl ItemsSource="{Binding Addons}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="models:AddonInfo">
-                        <Border Margin="0,0,0,8" Padding="14,12"
-                                Background="#211C29" BorderBrush="#3E334C"
-                                BorderThickness="1" CornerRadius="6">
-                            <Grid ColumnDefinitions="2.2*,1.05*,1.25*,Auto"
-                                  RowDefinitions="Auto,Auto">
-                                <TextBlock Grid.Row="0" Grid.Column="0"
-                                           Text="{Binding Definition.Name}"
-                                           Foreground="#F2EDF6" FontWeight="SemiBold"
-                                           FontSize="14" />
-                                <TextBlock Grid.Row="0" Grid.Column="1"
-                                           Text="{Binding RequirementText}"
-                                           Foreground="#B7A7C8"
-                                           HorizontalAlignment="Center" />
-                                <StackPanel Grid.Row="0" Grid.Column="2"
-                                            Orientation="Horizontal"
-                                            HorizontalAlignment="Right" Spacing="6">
-                                    <TextBlock Text="{Binding StatusSymbol}"
-                                               Foreground="#C5A9E5" />
-                                    <TextBlock Text="{Binding StatusText}"
-                                               Foreground="#D6CADF" />
+                        <Border Margin="0,0,0,9"
+                                Background="#0E1823"
+                                BorderBrush="#50401F"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="14,12">
+                            <Grid ColumnDefinitions="*,150,165,Auto"
+                                  RowDefinitions="Auto,Auto"
+                                  ColumnSpacing="12">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="{Binding Definition.Name}"
+                                               Foreground="#F8F0DF"
+                                               FontWeight="SemiBold"
+                                               FontSize="15" />
+                                    <TextBlock Text="{Binding VersionText}"
+                                               Foreground="#786F62"
+                                               FontSize="11" />
                                 </StackPanel>
-                                <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3"
-                                            Margin="14,0,0,0" Spacing="6"
+
+                                <Border Grid.Row="0"
+                                        Grid.Column="1"
+                                        Background="#111D29"
+                                        BorderBrush="#2D3D4B"
+                                        BorderThickness="1"
+                                        CornerRadius="3"
+                                        Padding="9,5"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding RequirementText}"
+                                               Foreground="#BFAE91"
+                                               FontSize="11"
+                                               HorizontalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Row="0"
+                                            Grid.Column="2"
+                                            Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Spacing="6">
+                                    <TextBlock Text="{Binding StatusSymbol}"
+                                               Foreground="#D8C5EA"
+                                               FontSize="14" />
+                                    <TextBlock Text="{Binding StatusText}"
+                                               Foreground="#E8DDC8"
+                                               FontSize="12" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0"
+                                            Grid.RowSpan="2"
+                                            Grid.Column="3"
+                                            Margin="8,0,0,0"
+                                            Spacing="6"
                                             VerticalAlignment="Center">
                                     <Button Content="{Binding ActionText}"
                                             IsVisible="{Binding CanInstallOrUpdate}"
-                                            Click="AddonAction_Click" />
+                                            Click="AddonAction_Click"
+                                            MinWidth="104" />
                                     <Button Content="REMOVE"
                                             IsVisible="{Binding CanRemoveFromManagement}"
-                                            Click="RemovePersonalAddon_Click" />
+                                            Click="RemovePersonalAddon_Click"
+                                            MinWidth="104" />
                                 </StackPanel>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
-                                           Margin="0,5,0,0" Text="{Binding VersionText}"
-                                           Foreground="#81768D" FontSize="11" />
+
+                                <Border Grid.Row="1"
+                                        Grid.Column="0"
+                                        Grid.ColumnSpan="3"
+                                        Margin="0,10,0,0"
+                                        Height="1"
+                                        Background="#272216" />
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -101,12 +209,26 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Border Grid.Row="3" Background="#211B2A" BorderBrush="#3A3047"
-                BorderThickness="0,1,0,0" Padding="18,14">
-            <Grid ColumnDefinitions="Auto,*">
-                <Button Content="+ ADD ADDON" Click="AddAddon_Click" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal"
-                            HorizontalAlignment="Right" Spacing="10">
+        <Border Grid.Row="3"
+                Background="#081019"
+                BorderBrush="#5B431B"
+                BorderThickness="0,1,0,0"
+                Padding="18,12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Content="+ ADD ADDON"
+                        Click="AddAddon_Click"
+                        Padding="17,9" />
+                <TextBlock Grid.Column="1"
+                           Margin="16,0"
+                           Text="Managed addons are checked against the configured realm manifest."
+                           Foreground="#756B5C"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap" />
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="9">
                     <Button Content="UPDATE ALL" Click="UpdateAll_Click" />
                     <Button Content="CHECK AGAIN" Click="Refresh_Click" />
                     <Button Content="CLOSE" Click="Close_Click" />
