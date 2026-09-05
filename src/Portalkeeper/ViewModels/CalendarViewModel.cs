@@ -6,7 +6,9 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Avalonia;
+using Avalonia.Media.Imaging;
 using Portalkeeper.Models;
+using Portalkeeper.Services;
 
 namespace Portalkeeper.ViewModels;
 
@@ -177,6 +179,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
 
         var (background, foreground) = EventColors(e);
         var icon = EventIcon(e);
+        var artwork = CalendarEventArtwork.Resolve(e);
 
         var continuesFromPrevious = false;
         var continuesToNext = false;
@@ -202,6 +205,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
         return new CalendarEventMarker(
             displayName,
             icon,
+            artwork,
             background,
             foreground,
             continuesFromPrevious,
@@ -214,6 +218,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
     {
         var (background, foreground) = EventColors(e);
         var icon = EventIcon(e);
+        var artwork = CalendarEventArtwork.Resolve(e);
 
         if (e.AllDay && e.StartDate is { } start)
         {
@@ -232,6 +237,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
                 detailText,
                 CategoryLabel(e.Category),
                 icon,
+                artwork,
                 background,
                 foreground);
         }
@@ -251,6 +257,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
                 timeText,
                 CategoryLabel(e.Category),
                 icon,
+                artwork,
                 background,
                 foreground);
         }
@@ -261,6 +268,7 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
             string.Empty,
             CategoryLabel(e.Category),
             icon,
+            artwork,
             background,
             foreground);
     }
@@ -279,6 +287,8 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
         if (name.Contains("Harvest", StringComparison.OrdinalIgnoreCase)) return "✦";
         if (name.Contains("Pirates", StringComparison.OrdinalIgnoreCase)) return "✣";
         if (name.Contains("Hallow", StringComparison.OrdinalIgnoreCase)) return "◇";
+        if (name.Contains("Day of the Dead", StringComparison.OrdinalIgnoreCase)) return "✚";
+        if (name.Contains("Pilgrim", StringComparison.OrdinalIgnoreCase)) return "✦";
         if (name.Contains("Winter", StringComparison.OrdinalIgnoreCase)) return "✶";
         if (name.Contains("Love", StringComparison.OrdinalIgnoreCase)) return "♥";
         if (name.Contains("Lunar", StringComparison.OrdinalIgnoreCase)) return "✧";
@@ -303,6 +313,10 @@ public sealed class CalendarViewModel : INotifyPropertyChanged
             return ("#786126", "#FFF9E7");
         if (name.Contains("Hallow", StringComparison.OrdinalIgnoreCase))
             return ("#704226", "#FFF4E8");
+        if (name.Contains("Day of the Dead", StringComparison.OrdinalIgnoreCase))
+            return ("#5D4566", "#FFF4FF");
+        if (name.Contains("Pilgrim", StringComparison.OrdinalIgnoreCase))
+            return ("#6D542B", "#FFF8E8");
         if (name.Contains("Winter", StringComparison.OrdinalIgnoreCase))
             return ("#3E6170", "#F2FCFF");
         if (name.Contains("Love", StringComparison.OrdinalIgnoreCase))
@@ -389,12 +403,16 @@ public sealed class CalendarDayCell
 public sealed record CalendarEventMarker(
     string Name,
     string IconGlyph,
+    Bitmap? Artwork,
     string Background,
     string Foreground,
     bool ContinuesFromPrevious,
     bool ContinuesToNext,
     CornerRadius CornerRadius,
-    Thickness Margin);
+    Thickness Margin)
+{
+    public bool HasArtwork => Artwork is not null;
+}
 
 public sealed record CalendarEventDetailRow(
     string Name,
@@ -402,5 +420,9 @@ public sealed record CalendarEventDetailRow(
     string DetailText,
     string CategoryText,
     string IconGlyph,
+    Bitmap? Artwork,
     string AccentBackground,
-    string AccentForeground);
+    string AccentForeground)
+{
+    public bool HasArtwork => Artwork is not null;
+}

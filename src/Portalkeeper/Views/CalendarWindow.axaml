@@ -155,12 +155,21 @@
                                   CornerRadius="{Binding CornerRadius}"
                                   Margin="{Binding Margin}"
                                   Padding="4,2">
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+                            <Grid ColumnDefinitions="14,*" ColumnSpacing="3">
+                              <Image Source="{Binding Artwork}"
+                                     IsVisible="{Binding HasArtwork}"
+                                     Width="12"
+                                     Height="12"
+                                     Stretch="Uniform"
+                                     VerticalAlignment="Center"
+                                     HorizontalAlignment="Center"/>
                               <TextBlock Text="{Binding IconGlyph}"
+                                         IsVisible="{Binding !HasArtwork}"
                                          Foreground="{Binding Foreground}"
                                          FontSize="9"
                                          FontWeight="Bold"
-                                         VerticalAlignment="Center"/>
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"/>
                               <TextBlock Grid.Column="1"
                                          Text="{Binding Name}"
                                          Foreground="{Binding Foreground}"
@@ -230,18 +239,30 @@
                         CornerRadius="6"
                         Padding="10,8"
                         Margin="0,3">
-                  <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="10">
-                    <Border Width="28"
-                            Height="28"
+                  <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
+                    <Border Width="38"
+                            Height="38"
                             Background="{Binding AccentBackground}"
-                            CornerRadius="14"
+                            CornerRadius="6"
+                            BorderBrush="#5A4D68"
+                            BorderThickness="1"
                             VerticalAlignment="Center">
-                      <TextBlock Text="{Binding IconGlyph}"
-                                 Foreground="{Binding AccentForeground}"
-                                 FontSize="14"
-                                 FontWeight="Bold"
-                                 HorizontalAlignment="Center"
-                                 VerticalAlignment="Center"/>
+                      <Grid>
+                        <Image Source="{Binding Artwork}"
+                               IsVisible="{Binding HasArtwork}"
+                               Width="34"
+                               Height="34"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding IconGlyph}"
+                                   IsVisible="{Binding !HasArtwork}"
+                                   Foreground="{Binding AccentForeground}"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                      </Grid>
                     </Border>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
