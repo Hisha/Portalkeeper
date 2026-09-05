@@ -11,7 +11,7 @@ public sealed class RealmArmoryIndex
     public List<ArmoryCharacterSummary> Characters { get; set; } = new();
 }
 
-public sealed class ArmoryCharacterSummary
+public class ArmoryCharacterSummary
 {
     public ulong Id { get; set; }
     public string Name { get; set; } = string.Empty;
