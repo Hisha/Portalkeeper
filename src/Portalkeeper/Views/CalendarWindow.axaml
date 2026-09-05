@@ -7,35 +7,40 @@
         x:Class="Portalkeeper.Views.CalendarWindow"
         x:DataType="vm:CalendarViewModel"
         Title="Realm Calendar"
-        Width="1080"
-        Height="850"
-        MinWidth="900"
-        MinHeight="720"
+        Width="1120"
+        Height="900"
+        MinWidth="940"
+        MinHeight="760"
         WindowStartupLocation="CenterOwner"
-        Background="#15131B">
+        Background="#0B1017">
 
   <Window.Styles>
     <Style Selector="Button.nav">
-      <Setter Property="Background" Value="#332B42"/>
-      <Setter Property="Foreground" Value="#F3EFF8"/>
-      <Setter Property="BorderBrush" Value="#554866"/>
+      <Setter Property="Background" Value="#101925"/>
+      <Setter Property="Foreground" Value="#F3CF78"/>
+      <Setter Property="BorderBrush" Value="#9A7230"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="CornerRadius" Value="3"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style Selector="Button.nav:pointerover">
-      <Setter Property="Background" Value="#433651"/>
-      <Setter Property="BorderBrush" Value="#77658D"/>
+      <Setter Property="Background" Value="#182536"/>
+      <Setter Property="BorderBrush" Value="#D2A84C"/>
+      <Setter Property="Foreground" Value="#FFE9A7"/>
+    </Style>
+    <Style Selector="Button.nav:pressed">
+      <Setter Property="Background" Value="#0B121B"/>
     </Style>
     <Style Selector="Button.nav:disabled">
-      <Setter Property="Background" Value="#18151E"/>
-      <Setter Property="Foreground" Value="#625B6C"/>
-      <Setter Property="BorderBrush" Value="#292431"/>
+      <Setter Property="Background" Value="#0B0F15"/>
+      <Setter Property="Foreground" Value="#4F4B43"/>
+      <Setter Property="BorderBrush" Value="#302A21"/>
     </Style>
 
     <Style Selector="Button.day">
       <Setter Property="Padding" Value="0"/>
-      <Setter Property="Margin" Value="2"/>
-      <Setter Property="CornerRadius" Value="3"/>
+      <Setter Property="Margin" Value="1.5"/>
+      <Setter Property="CornerRadius" Value="2"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="VerticalContentAlignment" Value="Stretch"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -45,180 +50,251 @@
     </Style>
   </Window.Styles>
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
-    <!-- Portalkeeper chrome -->
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Background="#0B1017">
+
+    <!-- Scenic Portalkeeper header -->
     <Border Grid.Row="0"
-            Background="#201C2A"
-            BorderBrush="#3A324A"
-            BorderThickness="0,0,0,1"
-            Padding="22,15">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel>
-          <TextBlock Text="REALM CALENDAR"
-                     FontSize="22"
-                     FontWeight="Bold"
-                     Foreground="#F3EFF8"/>
-          <TextBlock Text="Public realm events"
-                     Foreground="#AFA6BD"/>
-        </StackPanel>
-        <TextBlock Grid.Column="1"
-                   Text="PORTALKEEPER"
-                   VerticalAlignment="Center"
-                   Foreground="#756B83"
-                   FontWeight="SemiBold"
-                   LetterSpacing="1.3"/>
+            Height="106"
+            BorderBrush="#A77B34"
+            BorderThickness="0,0,0,2"
+            ClipToBounds="True">
+      <Grid>
+        <Image Source="/Assets/Calendar/calendar-banner.png"
+               Stretch="UniformToFill"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"/>
+        <Border Background="#9A07101B"/>
+        <Border Background="#34000000"/>
+
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,10,22,10">
+          <Border Width="76"
+                  Height="76"
+                  CornerRadius="38"
+                  Background="#0B121D"
+                  BorderBrush="#C0903C"
+                  BorderThickness="2"
+                  Padding="4"
+                  VerticalAlignment="Center">
+            <Image Source="/Assets/portalkeeper-icon.png"
+                   Stretch="UniformToFill"/>
+          </Border>
+
+          <StackPanel Grid.Column="1"
+                      Margin="17,0,0,0"
+                      VerticalAlignment="Center">
+            <TextBlock Text="REALM CALENDAR"
+                       FontSize="29"
+                       FontWeight="Bold"
+                       Foreground="#F2CE76"
+                       LetterSpacing="0.7"/>
+            <TextBlock Text="Public realm events"
+                       FontSize="14"
+                       Foreground="#E1D8C7"
+                       Margin="1,2,0,0"/>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right">
+            <TextBlock Text="PORTALKEEPER"
+                       Foreground="#C8B6D8"
+                       FontSize="15"
+                       FontWeight="SemiBold"
+                       LetterSpacing="2"/>
+            <TextBlock Text="ADVENTURE AWAITS"
+                       Foreground="#81758E"
+                       FontSize="9"
+                       HorizontalAlignment="Right"
+                       LetterSpacing="1.4"
+                       Margin="0,3,0,0"/>
+          </StackPanel>
+        </Grid>
       </Grid>
     </Border>
 
     <!-- Month navigation -->
-    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="22,16,22,10">
-      <Button Classes="nav"
-              Content="‹ PREVIOUS"
-              Click="Previous_Click"
-              IsEnabled="{Binding CanPrevious}"
-              Padding="16,8"/>
-      <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-        <TextBlock Text="{Binding MonthTitle}"
-                   HorizontalAlignment="Center"
-                   FontSize="21"
-                   FontWeight="Bold"
-                   Foreground="#F3EFF8"/>
-        <TextBlock Text="Select a day to view event details"
-                   HorizontalAlignment="Center"
-                   FontSize="11"
-                   Foreground="#80768D"/>
-      </StackPanel>
-      <Button Grid.Column="2"
-              Classes="nav"
-              Content="NEXT ›"
-              Click="Next_Click"
-              IsEnabled="{Binding CanNext}"
-              Padding="16,8"/>
-    </Grid>
+    <Border Grid.Row="1"
+            Background="#0D141D"
+            BorderBrush="#46361E"
+            BorderThickness="0,0,0,1"
+            Padding="20,11,20,10">
+      <Grid ColumnDefinitions="190,*,190">
+        <Button Classes="nav"
+                Content="◀  PREVIOUS"
+                Click="Previous_Click"
+                IsEnabled="{Binding CanPrevious}"
+                Padding="18,9"
+                HorizontalAlignment="Left"
+                MinWidth="145"/>
 
-    <!-- Calendar parchment -->
-    <Border Grid.Row="2"
-            Margin="22,0"
-            Background="#B8A985"
-            BorderBrush="#594B37"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="8">
-      <Grid RowDefinitions="Auto,*">
-        <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*,*,*" Margin="2,0,2,4">
-          <Border Grid.Column="0" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="SUN" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="1" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="MON" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="2" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="TUE" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="3" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="WED" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="4" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="THU" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="5" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="FRI" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-          <Border Grid.Column="6" Background="#493C31" Margin="1" Padding="5"><TextBlock Text="SAT" HorizontalAlignment="Center" Foreground="#F1E4C4" FontWeight="Bold"/></Border>
-        </Grid>
+        <Border Grid.Column="1"
+                HorizontalAlignment="Center"
+                MinWidth="310"
+                Background="#111B27"
+                BorderBrush="#9B7130"
+                BorderThickness="1"
+                CornerRadius="3"
+                Padding="28,7">
+          <StackPanel>
+            <TextBlock Text="{Binding MonthTitle}"
+                       HorizontalAlignment="Center"
+                       FontSize="23"
+                       FontWeight="Bold"
+                       Foreground="#F1CE75"
+                       LetterSpacing="0.5"/>
+            <TextBlock Text="Select a day to view event details"
+                       HorizontalAlignment="Center"
+                       FontSize="10"
+                       Foreground="#887E8F"
+                       Margin="0,1,0,0"/>
+          </StackPanel>
+        </Border>
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Days}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <UniformGrid Columns="7" Rows="6"/>
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:CalendarDayCell">
-              <Button Classes="day"
-                      Click="Day_Click"
-                      Background="{Binding Background}"
-                      BorderBrush="{Binding BorderBrush}"
-                      Opacity="{Binding CellOpacity}">
-                <Grid RowDefinitions="Auto,*" MinHeight="72">
-                  <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="7,5,6,2">
-                    <Border Background="#2B2118"
-                            CornerRadius="10"
-                            Padding="6,2">
-                      <TextBlock Text="{Binding DayNumber}"
-                                 Foreground="#F7EACB"
-                                 FontWeight="Bold"
-                                 FontSize="12"/>
-                    </Border>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding TodayBadge}"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"
-                               Foreground="#654D84"
-                               FontSize="9"
-                               FontWeight="Bold"/>
-                  </Grid>
-
-                  <StackPanel Grid.Row="1" Margin="5,2,5,5" Spacing="1">
-                    <ItemsControl ItemsSource="{Binding Markers}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:CalendarEventMarker">
-                          <Border Background="{Binding Background}"
-                                  CornerRadius="{Binding CornerRadius}"
-                                  Margin="{Binding Margin}"
-                                  Padding="4,2">
-                            <Grid ColumnDefinitions="14,*" ColumnSpacing="3">
-                              <Image Source="{Binding Artwork}"
-                                     IsVisible="{Binding HasArtwork}"
-                                     Width="12"
-                                     Height="12"
-                                     Stretch="Uniform"
-                                     VerticalAlignment="Center"
-                                     HorizontalAlignment="Center"/>
-                              <TextBlock Text="{Binding IconGlyph}"
-                                         IsVisible="{Binding !HasArtwork}"
-                                         Foreground="{Binding Foreground}"
-                                         FontSize="9"
-                                         FontWeight="Bold"
-                                         VerticalAlignment="Center"
-                                         HorizontalAlignment="Center"/>
-                              <TextBlock Grid.Column="1"
-                                         Text="{Binding Name}"
-                                         Foreground="{Binding Foreground}"
-                                         FontSize="9"
-                                         FontWeight="SemiBold"
-                                         TextTrimming="CharacterEllipsis"
-                                         MaxLines="1"/>
-                            </Grid>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="{Binding OverflowCount, StringFormat='+{0} more'}"
-                               IsVisible="{Binding HasOverflow}"
-                               Foreground="#6A5944"
-                               FontSize="9"
-                               FontWeight="SemiBold"
-                               Margin="3,0,0,0"/>
-                  </StackPanel>
-                </Grid>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Button Grid.Column="2"
+                Classes="nav"
+                Content="NEXT  ▶"
+                Click="Next_Click"
+                IsEnabled="{Binding CanNext}"
+                Padding="18,9"
+                HorizontalAlignment="Right"
+                MinWidth="145"/>
       </Grid>
     </Border>
 
-    <!-- Selected day -->
+    <!-- Framed parchment calendar -->
+    <Border Grid.Row="2"
+            Margin="18,8,18,0"
+            Background="#17120D"
+            BorderBrush="#B1843B"
+            BorderThickness="2"
+            CornerRadius="4"
+            Padding="3">
+      <Border Background="#C3B38C"
+              BorderBrush="#6A5030"
+              BorderThickness="1"
+              CornerRadius="2"
+              Padding="6">
+        <Grid RowDefinitions="Auto,*">
+          <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*,*,*" Margin="1,0,1,4">
+            <Border Grid.Column="0" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="SUN" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="1" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="MON" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="2" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="TUE" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="3" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="WED" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="4" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="THU" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="5" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="FRI" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+            <Border Grid.Column="6" Background="#392D22" BorderBrush="#8A693B" BorderThickness="1" Margin="1,0" Padding="6"><TextBlock Text="SAT" HorizontalAlignment="Center" Foreground="#F5D98E" FontWeight="Bold"/></Border>
+          </Grid>
+
+          <ItemsControl Grid.Row="1" ItemsSource="{Binding Days}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="7" Rows="6"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CalendarDayCell">
+                <Button Classes="day"
+                        Click="Day_Click"
+                        Background="{Binding Background}"
+                        BorderBrush="{Binding BorderBrush}"
+                        Opacity="{Binding CellOpacity}">
+                  <Grid RowDefinitions="Auto,*" MinHeight="74">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="7,5,6,2">
+                      <Border Background="#332719"
+                              BorderBrush="#71572F"
+                              BorderThickness="1"
+                              CornerRadius="10"
+                              Padding="6,2">
+                        <TextBlock Text="{Binding DayNumber}"
+                                   Foreground="#FFF0C4"
+                                   FontWeight="Bold"
+                                   FontSize="12"/>
+                      </Border>
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding TodayBadge}"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 Foreground="#73571E"
+                                 FontSize="9"
+                                 FontWeight="Bold"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Margin="5,2,5,5" Spacing="1">
+                      <ItemsControl ItemsSource="{Binding Markers}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:CalendarEventMarker">
+                            <Border Background="{Binding Background}"
+                                    BorderBrush="#55000000"
+                                    BorderThickness="1"
+                                    CornerRadius="{Binding CornerRadius}"
+                                    Margin="{Binding Margin}"
+                                    Padding="3,2">
+                              <Grid ColumnDefinitions="16,*" ColumnSpacing="3">
+                                <Image Source="{Binding Artwork}"
+                                       IsVisible="{Binding HasArtwork}"
+                                       Width="14"
+                                       Height="14"
+                                       Stretch="UniformToFill"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding IconGlyph}"
+                                           IsVisible="{Binding !HasArtwork}"
+                                           Foreground="{Binding Foreground}"
+                                           FontSize="9"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Name}"
+                                           Foreground="{Binding Foreground}"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxLines="1"/>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Text="{Binding OverflowCount, StringFormat='+{0} more'}"
+                                 IsVisible="{Binding HasOverflow}"
+                                 Foreground="#6A5230"
+                                 FontSize="9"
+                                 FontWeight="SemiBold"
+                                 Margin="3,0,0,0"/>
+                    </StackPanel>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Grid>
+      </Border>
+    </Border>
+
+    <!-- Selected day detail panel -->
     <Border Grid.Row="3"
-            Margin="22,12,22,0"
-            Background="#201C2A"
-            BorderBrush="#3A324A"
+            Margin="18,10,18,0"
+            Background="#0E1722"
+            BorderBrush="#8B682F"
             BorderThickness="1"
-            CornerRadius="8"
-            Padding="14,12">
+            CornerRadius="3"
+            Padding="12,10">
       <Grid ColumnDefinitions="220,*">
-        <StackPanel Margin="2,0,18,0">
+        <StackPanel Margin="3,0,18,0">
           <TextBlock Text="SELECTED DAY"
-                     Foreground="#8E839C"
+                     Foreground="#A797B2"
                      FontSize="11"
-                     FontWeight="Bold"/>
+                     FontWeight="Bold"
+                     LetterSpacing="0.8"/>
           <TextBlock Text="{Binding SelectedDayTitle}"
-                     Foreground="#F3EFF8"
-                     FontSize="16"
+                     Foreground="#F6F0E8"
+                     FontSize="17"
                      FontWeight="SemiBold"
                      TextWrapping="Wrap"
                      Margin="0,3,0,0"/>
           <TextBlock Text="Click another date to inspect its events."
-                     Foreground="#6F667A"
+                     Foreground="#6F7480"
                      FontSize="10"
                      TextWrapping="Wrap"
                      Margin="0,7,0,0"/>
@@ -227,31 +303,31 @@
         <Grid Grid.Column="1">
           <TextBlock Text="{Binding SelectedDayEmptyText}"
                      IsVisible="{Binding !HasSelectedEvents}"
-                     Foreground="#746B80"
+                     Foreground="#7D8190"
                      VerticalAlignment="Center"/>
           <ItemsControl ItemsSource="{Binding SelectedEvents}"
                         IsVisible="{Binding HasSelectedEvents}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CalendarEventDetailRow">
-                <Border Background="#18151F"
-                        BorderBrush="#302A3A"
+                <Border Background="#101A26"
+                        BorderBrush="#3B4653"
                         BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="10,8"
+                        CornerRadius="4"
+                        Padding="9,7"
                         Margin="0,3">
-                  <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
-                    <Border Width="38"
-                            Height="38"
+                  <Grid ColumnDefinitions="46,*,Auto" ColumnSpacing="10">
+                    <Border Width="42"
+                            Height="42"
                             Background="{Binding AccentBackground}"
-                            CornerRadius="6"
-                            BorderBrush="#5A4D68"
+                            CornerRadius="4"
+                            BorderBrush="#8A693B"
                             BorderThickness="1"
                             VerticalAlignment="Center">
                       <Grid>
                         <Image Source="{Binding Artwork}"
                                IsVisible="{Binding HasArtwork}"
-                               Width="34"
-                               Height="34"
+                               Width="38"
+                               Height="38"
                                Stretch="UniformToFill"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"/>
@@ -267,11 +343,11 @@
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                       <TextBlock Text="{Binding Name}"
-                                 Foreground="#F3EFF8"
+                                 Foreground="#F6F0E8"
                                  FontWeight="SemiBold"
                                  FontSize="13"/>
                       <TextBlock Text="{Binding CategoryText}"
-                                 Foreground="#8B8197"
+                                 Foreground="#8EA1B5"
                                  FontSize="10"/>
                     </StackPanel>
 
@@ -280,11 +356,11 @@
                                 HorizontalAlignment="Right"
                                 Margin="18,0,0,0">
                       <TextBlock Text="{Binding DateText}"
-                                 Foreground="#D3C7DD"
+                                 Foreground="#E0D6C9"
                                  FontSize="11"
                                  HorizontalAlignment="Right"/>
                       <TextBlock Text="{Binding DetailText}"
-                                 Foreground="#9E93AA"
+                                 Foreground="#9EAABC"
                                  FontSize="10"
                                  HorizontalAlignment="Right"/>
                     </StackPanel>
@@ -298,17 +374,24 @@
     </Border>
 
     <!-- Feed status -->
-    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="22,9,22,15">
-      <TextBlock Text="{Binding LoadStatus}"
-                 Foreground="#AFA6BD"
-                 FontSize="11"
-                 TextWrapping="Wrap"/>
-      <TextBlock Grid.Column="1"
-                 Text="{Binding FeedRange}"
-                 Foreground="#746B80"
-                 FontSize="10"
-                 TextWrapping="Wrap"
-                 HorizontalAlignment="Right"/>
-    </Grid>
+    <Border Grid.Row="4"
+            Background="#0A1017"
+            BorderBrush="#3C301D"
+            BorderThickness="0,1,0,0"
+            Margin="0,10,0,0"
+            Padding="18,9,18,11">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding LoadStatus}"
+                   Foreground="#9CA5B2"
+                   FontSize="10"
+                   TextWrapping="Wrap"/>
+        <TextBlock Grid.Column="1"
+                   Text="{Binding FeedRange}"
+                   Foreground="#706B79"
+                   FontSize="10"
+                   TextWrapping="Wrap"
+                   HorizontalAlignment="Right"/>
+      </Grid>
+    </Border>
   </Grid>
 </Window>

@@ -388,14 +388,14 @@ public sealed class CalendarDayCell
     public bool HasOverflow => OverflowCount > 0;
 
     public string Background => IsSelected
-        ? "#FFF0C8"
-        : IsCurrentMonth ? "#E8DDBF" : "#B1A486";
+        ? "#F7E5B7"
+        : IsCurrentMonth ? "#E7D5A8" : "#B2A585";
 
     public string BorderBrush => IsSelected
-        ? "#9B6B24"
-        : IsToday ? "#7963A0" : IsCurrentMonth ? "#9C8D70" : "#81765F";
+        ? "#E0A735"
+        : IsToday ? "#C48C2F" : IsCurrentMonth ? "#9D8051" : "#766A52";
 
-    public string DayForeground => IsCurrentMonth ? "#2A2118" : "#6D6250";
+    public string DayForeground => IsCurrentMonth ? "#251A10" : "#675B47";
     public string TodayBadge => IsToday ? "TODAY" : string.Empty;
     public double CellOpacity => !IsPublished ? 0.30 : IsCurrentMonth ? 1.0 : 0.58;
 }
