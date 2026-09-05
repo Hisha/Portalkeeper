@@ -298,11 +298,10 @@
                     Foreground="#80788A"
                     VerticalAlignment="Center" />
 
-                <Button
-                    Grid.Column="1"
-                    Content="SETTINGS"
-                    Click="Settings_Click"
-                    Padding="14,6" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Content="CALENDAR" Click="Calendar_Click" IsVisible="{Binding CalendarAvailable}" Padding="14,6" />
+                    <Button Content="SETTINGS" Click="Settings_Click" Padding="14,6" />
+                </StackPanel>
 
             </Grid>
 

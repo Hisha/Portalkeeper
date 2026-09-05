@@ -72,7 +72,10 @@ public sealed class RealmConfigurationService
                 Get(values, "Updates.NewsURL"),
 
             StatusUrl =
-                Get(values, "Updates.StatusURL")
+                Get(values, "Updates.StatusURL"),
+
+            CalendarUrl =
+                Get(values, "Updates.CalendarURL")
         };
     }
 

@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Portalkeeper.ViewModels"
+        mc:Ignorable="d" x:Class="Portalkeeper.Views.CalendarWindow"
+        x:DataType="vm:CalendarViewModel" Title="Realm Calendar"
+        Width="760" Height="650" MinWidth="620" MinHeight="480"
+        WindowStartupLocation="CenterOwner" Background="#15131B">
+  <Window.Styles>
+    <Style Selector="Button"><Setter Property="Background" Value="#332B42"/><Setter Property="Foreground" Value="#F3EFF8"/><Setter Property="BorderBrush" Value="#554669"/><Setter Property="CornerRadius" Value="5"/></Style>
+    <Style Selector="Button:pointerover"><Setter Property="Background" Value="#493A5E"/></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <Border Background="#201C2A" BorderBrush="#3A324A" BorderThickness="0,0,0,1" Padding="22,16">
+      <StackPanel><TextBlock Text="REALM CALENDAR" FontSize="22" FontWeight="Bold" Foreground="#F3EFF8"/><TextBlock Text="Public realm events" Foreground="#AFA6BD"/></StackPanel>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="22,18,22,10">
+      <Button Content="‹ PREVIOUS" Click="Previous_Click" IsEnabled="{Binding CanPrevious}" Padding="14,8"/>
+      <TextBlock Grid.Column="1" Text="{Binding MonthTitle}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="19" FontWeight="SemiBold" Foreground="#F3EFF8"/>
+      <Button Grid.Column="2" Content="NEXT ›" Click="Next_Click" IsEnabled="{Binding CanNext}" Padding="14,8"/>
+    </Grid>
+    <Border Grid.Row="2" Margin="22,0" Background="#201C2A" BorderBrush="#3A324A" BorderThickness="1" CornerRadius="8" Padding="8">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Events}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CalendarEventRow">
+              <Border BorderBrush="#342D40" BorderThickness="0,0,0,1" Padding="12,11">
+                <Grid ColumnDefinitions="125,*,140">
+                  <TextBlock Text="{Binding DateText}" Foreground="#AFA6BD" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" Foreground="#F3EFF8" FontWeight="SemiBold"/><TextBlock Text="{Binding Category}" Foreground="#746B80" FontSize="11"/></StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding TimeText}" Foreground="#C3B8CF" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+    <StackPanel Grid.Row="3" Margin="22,10,22,18" Spacing="3">
+      <TextBlock Text="{Binding LoadStatus}" Foreground="#AFA6BD" FontSize="12" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding FeedRange}" Foreground="#746B80" FontSize="11" TextWrapping="Wrap"/>
+    </StackPanel>
+  </Grid>
+</Window>

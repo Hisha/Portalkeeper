@@ -9,6 +9,7 @@ public sealed class RealmInfo
     public string ManifestUrl { get; init; } = string.Empty;
     public string NewsUrl { get; init; } = string.Empty;
     public string StatusUrl { get; init; } = string.Empty;
+    public string CalendarUrl { get; init; } = string.Empty;
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Name) &&
