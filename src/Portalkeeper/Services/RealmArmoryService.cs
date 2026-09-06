@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using Portalkeeper.Models;
 
 namespace Portalkeeper.Services;
@@ -65,6 +67,38 @@ public sealed class RealmArmoryService
             }
             catch { }
             return new(null, false, UserErrorService.Format(ex, "Unable to load character profile"));
+        }
+    }
+
+    public async Task<Bitmap?> LoadItemIconAsync(string iconName)
+    {
+        if (string.IsNullOrWhiteSpace(iconName))
+            return null;
+
+        var safeName = string.Concat(iconName.ToLowerInvariant().Where(c =>
+            char.IsLetterOrDigit(c) || c == '_' || c == '-'));
+        if (string.IsNullOrWhiteSpace(safeName))
+            return null;
+
+        var iconDirectory = Path.Combine(_cacheDirectory, "icons");
+        Directory.CreateDirectory(iconDirectory);
+        var cache = Path.Combine(iconDirectory, safeName + ".jpg");
+
+        try
+        {
+            if (!File.Exists(cache))
+            {
+                var uri = new Uri($"https://wow.zamimg.com/images/wow/icons/large/{safeName}.jpg");
+                var bytes = await Http.GetByteArrayAsync(uri);
+                await File.WriteAllBytesAsync(cache, bytes);
+            }
+
+            await using var stream = File.OpenRead(cache);
+            return new Bitmap(stream);
+        }
+        catch
+        {
+            return null;
         }
     }
 

@@ -15,6 +15,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
     private readonly RealmArmoryService _service;
     private readonly string _indexUrl;
     private readonly List<ArmoryCharacterSummary> _all;
+
     private string _searchText = string.Empty;
     private int _filterIndex;
     private ArmoryCharacterSummary? _selectedSummary;
@@ -28,20 +29,31 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         _indexUrl = indexUrl;
         _status = status;
         _all = feed.Characters.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
         Characters = new ObservableCollection<ArmoryCharacterSummary>();
+        LeftEquipmentSlots = new ObservableCollection<ArmoryEquipmentSlotView>();
+        RightEquipmentSlots = new ObservableCollection<ArmoryEquipmentSlotView>();
+        BottomEquipmentSlots = new ObservableCollection<ArmoryEquipmentSlotView>();
+
         ApplyFilter();
     }
 
     public ObservableCollection<ArmoryCharacterSummary> Characters { get; }
+    public ObservableCollection<ArmoryEquipmentSlotView> LeftEquipmentSlots { get; }
+    public ObservableCollection<ArmoryEquipmentSlotView> RightEquipmentSlots { get; }
+    public ObservableCollection<ArmoryEquipmentSlotView> BottomEquipmentSlots { get; }
+
     public string Status { get => _status; private set { _status = value; OnPropertyChanged(); } }
     public bool LoadingProfile { get => _loadingProfile; private set { _loadingProfile = value; OnPropertyChanged(); } }
     public bool HasSelectedCharacter => SelectedCharacter is not null;
     public bool HasNoSelectedCharacter => SelectedCharacter is null;
+
     public IReadOnlyList<string> Filters { get; } = new[] { "All Characters", "Players", "Playerbots" };
+
     public int TotalCharacters => _all.Count;
     public int TotalPlayers => _all.Count(x => !x.Playerbot);
     public int TotalPlayerbots => _all.Count(x => x.Playerbot);
-    public string RosterSummary => $"{Characters.Count:N0} shown  •  {_all.Count:N0} total";
+    public string RosterSummary => $"{Characters.Count:N0} shown • {_all.Count:N0} total";
 
     public string SearchText
     {
@@ -75,6 +87,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
             if (ReferenceEquals(_selectedSummary, value)) return;
             _selectedSummary = value;
             OnPropertyChanged();
+
             if (value is not null)
                 _ = LoadProfileAsync(value.Id);
         }
@@ -86,6 +99,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         private set
         {
             _selectedCharacter = value;
+            RebuildEquipmentSlots();
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedCharacter));
             OnPropertyChanged(nameof(HasNoSelectedCharacter));
@@ -111,6 +125,53 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RosterSummary));
     }
 
+    private void RebuildEquipmentSlots()
+    {
+        LeftEquipmentSlots.Clear();
+        RightEquipmentSlots.Clear();
+        BottomEquipmentSlots.Clear();
+
+        if (_selectedCharacter is null)
+            return;
+
+        var bySlot = _selectedCharacter.Equipment.ToDictionary(x => x.Slot);
+
+        // Deliberately mirrors the visual rhythm of the classic character sheet:
+        // armor on the sides, jewelry/weapons across the bottom.
+        int[] left =  { 0, 1, 2, 14, 4, 3, 18 };
+        int[] right = { 8, 9, 5, 6, 7 };
+        int[] bottom = { 10, 11, 12, 13, 15, 16, 17 };
+
+        foreach (var slot in left)
+            LeftEquipmentSlots.Add(new ArmoryEquipmentSlotView(slot, bySlot.GetValueOrDefault(slot)));
+        foreach (var slot in right)
+            RightEquipmentSlots.Add(new ArmoryEquipmentSlotView(slot, bySlot.GetValueOrDefault(slot)));
+        foreach (var slot in bottom)
+            BottomEquipmentSlots.Add(new ArmoryEquipmentSlotView(slot, bySlot.GetValueOrDefault(slot)));
+    }
+
+    private async Task LoadEquipmentIconsAsync(ulong characterId)
+    {
+        var slots = LeftEquipmentSlots
+            .Concat(RightEquipmentSlots)
+            .Concat(BottomEquipmentSlots)
+            .Where(x => x.HasItem && !string.IsNullOrWhiteSpace(x.IconName))
+            .ToArray();
+
+        var tasks = slots.Select(async slot =>
+        {
+            var bitmap = await _service.LoadItemIconAsync(slot.IconName);
+
+            // Selection may have changed while icons were downloading.
+            if (_selectedSummary?.Id == characterId)
+                slot.IconImage = bitmap;
+            else
+                bitmap?.Dispose();
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
     private async Task LoadProfileAsync(ulong id)
     {
         LoadingProfile = true;
@@ -118,11 +179,13 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         {
             var result = await _service.LoadProfileAsync(_indexUrl, id);
 
-            // Do not let a slower earlier request replace a newer selection.
             if (_selectedSummary?.Id == id)
             {
                 SelectedCharacter = result.Profile?.Character;
                 Status = result.Status;
+
+                if (SelectedCharacter is not null)
+                    _ = LoadEquipmentIconsAsync(id);
             }
         }
         finally
