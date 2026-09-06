@@ -44,8 +44,22 @@ public sealed class RealmArmoryProfile
     public ArmoryCharacter Character { get; set; } = new();
 }
 
+public sealed class ArmoryCharacterAppearance
+{
+    public int Skin { get; set; }
+    public int Face { get; set; }
+    public int HairStyle { get; set; }
+    public int HairColor { get; set; }
+    public int FacialStyle { get; set; }
+
+    [JsonIgnore]
+    public string DebugSummary =>
+        $"Skin {Skin} • Face {Face} • Hair {HairStyle}/{HairColor} • Facial {FacialStyle}";
+}
+
 public sealed class ArmoryCharacter : ArmoryCharacterSummary
 {
+    public ArmoryCharacterAppearance Appearance { get; set; } = new();
     public List<ArmoryEquipmentItem> Equipment { get; set; } = new();
 
     [JsonIgnore] public int EquippedCount => Equipment.Count;
@@ -57,14 +71,54 @@ public sealed class ArmoryCharacter : ArmoryCharacterSummary
         Equipment.Count == 0 ? "No equipped items" : $"{EquippedCount} equipped items";
 }
 
+public sealed class ArmoryItemStat
+{
+    public int Type { get; set; }
+    public int Value { get; set; }
+
+    [JsonIgnore] public string Name => ArmoryNames.StatName(Type);
+    [JsonIgnore] public string Display => $"{(Value >= 0 ? "+" : "")}{Value} {Name}";
+}
+
+public sealed class ArmoryItemDamage
+{
+    public double Min { get; set; }
+    public double Max { get; set; }
+    public int Type { get; set; }
+
+    [JsonIgnore] public string SchoolName => ArmoryNames.DamageSchoolName(Type);
+}
+
 public sealed class ArmoryEquipmentItem
 {
     public int Slot { get; set; }
     public int Entry { get; set; }
+    public int DisplayId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Icon { get; set; } = string.Empty;
     public int Quality { get; set; }
     public int ItemLevel { get; set; }
+    public int ItemClass { get; set; }
+    public int SubClass { get; set; }
+    public int InventoryType { get; set; }
+    public int RequiredLevel { get; set; }
+    public int Bonding { get; set; }
+    public int Armor { get; set; }
+    public int Block { get; set; }
+    public int Delay { get; set; }
+    public int CurrentDurability { get; set; }
+    public int MaxDurability { get; set; }
+    public int HolyRes { get; set; }
+    public int FireRes { get; set; }
+    public int NatureRes { get; set; }
+    public int FrostRes { get; set; }
+    public int ShadowRes { get; set; }
+    public int ArcaneRes { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public List<ArmoryItemStat> Stats { get; set; } = new();
+    public List<ArmoryItemDamage> Damage { get; set; } = new();
+    public List<int> SocketColors { get; set; } = new();
+    public string Enchantments { get; set; } = string.Empty;
 
     [JsonIgnore] public string SlotName => ArmoryNames.SlotName(Slot);
     [JsonIgnore] public string SlotAbbreviation => ArmoryNames.SlotAbbreviation(Slot);
@@ -72,7 +126,56 @@ public sealed class ArmoryEquipmentItem
     [JsonIgnore] public string Detail => $"iLvl {ItemLevel} • Entry {Entry}";
     [JsonIgnore] public string QualityDetail => $"{QualityName} • iLvl {ItemLevel}";
     [JsonIgnore] public IBrush QualityBrush => ArmoryNames.QualityBrush(Quality);
+    [JsonIgnore] public string BindingText => ArmoryNames.BondingText(Bonding);
+    [JsonIgnore] public string TypeText => ArmoryNames.ItemTypeText(ItemClass, SubClass, InventoryType);
+    [JsonIgnore] public string RequiredLevelText => RequiredLevel > 0 ? $"Requires Level {RequiredLevel}" : string.Empty;
+    [JsonIgnore] public string DurabilityText =>
+        MaxDurability > 0 ? $"Durability {CurrentDurability} / {MaxDurability}" : string.Empty;
+    [JsonIgnore] public string ArmorText => Armor > 0 ? $"{Armor:N0} Armor" : string.Empty;
+    [JsonIgnore] public string BlockText => Block > 0 ? $"{Block:N0} Block" : string.Empty;
+    [JsonIgnore] public string DamageText =>
+        Damage.Count > 0 ? $"{Damage[0].Min:0.#} - {Damage[0].Max:0.#} {Damage[0].SchoolName} Damage" : string.Empty;
+    [JsonIgnore] public string SpeedText => Delay > 0 ? $"Speed {Delay / 1000.0:0.00}" : string.Empty;
+    [JsonIgnore] public string DpsText
+    {
+        get
+        {
+            if (Delay <= 0 || Damage.Count == 0)
+                return string.Empty;
+            var average = (Damage[0].Min + Damage[0].Max) / 2.0;
+            var dps = average / (Delay / 1000.0);
+            return $"({dps:0.0} damage per second)";
+        }
+    }
+
+    [JsonIgnore] public IReadOnlyList<string> ResistanceLines
+    {
+        get
+        {
+            var values = new List<string>();
+            if (HolyRes != 0) values.Add($"{HolyRes:+#;-#;0} Holy Resistance");
+            if (FireRes != 0) values.Add($"{FireRes:+#;-#;0} Fire Resistance");
+            if (NatureRes != 0) values.Add($"{NatureRes:+#;-#;0} Nature Resistance");
+            if (FrostRes != 0) values.Add($"{FrostRes:+#;-#;0} Frost Resistance");
+            if (ShadowRes != 0) values.Add($"{ShadowRes:+#;-#;0} Shadow Resistance");
+            if (ArcaneRes != 0) values.Add($"{ArcaneRes:+#;-#;0} Arcane Resistance");
+            return values;
+        }
+    }
+
+    [JsonIgnore] public IReadOnlyList<string> SocketLines =>
+        SocketColors.Select(ArmoryNames.SocketColorName).ToArray();
+
+    [JsonIgnore] public string StatsText =>
+        string.Join(Environment.NewLine, Stats.Select(x => x.Display));
+
+    [JsonIgnore] public string ResistancesText =>
+        string.Join(Environment.NewLine, ResistanceLines);
+
+    [JsonIgnore] public string SocketsText =>
+        string.Join(Environment.NewLine, SocketLines);
 }
+
 
 public sealed class ArmoryEquipmentSlotView : INotifyPropertyChanged
 {
@@ -97,6 +200,10 @@ public sealed class ArmoryEquipmentSlotView : INotifyPropertyChanged
     public string IconName => Item?.Icon ?? string.Empty;
     public IBrush AccentBrush => Item?.QualityBrush ?? ArmoryNames.EmptySlotBrush;
     public IBrush ItemNameBrush => Item?.QualityBrush ?? ArmoryNames.EmptySlotTextBrush;
+    public bool HasTooltip => Item is not null;
+    public IReadOnlyList<ArmoryItemStat> TooltipStats => Item?.Stats ?? Array.Empty<ArmoryItemStat>();
+    public IReadOnlyList<string> TooltipResistances => Item?.ResistanceLines ?? Array.Empty<string>();
+    public IReadOnlyList<string> TooltipSockets => Item?.SocketLines ?? Array.Empty<string>();
 
     public Bitmap? IconImage
     {
@@ -202,4 +309,149 @@ public static class ArmoryNames
         2 or 5 or 6 or 8 or 10 => "#C35A4F",
         _ => "#8D8579"
     });
+
+    public static string StatName(int type) => type switch
+    {
+        0 => "Mana",
+        1 => "Health",
+        3 => "Agility",
+        4 => "Strength",
+        5 => "Intellect",
+        6 => "Spirit",
+        7 => "Stamina",
+        12 => "Defense Rating",
+        13 => "Dodge Rating",
+        14 => "Parry Rating",
+        15 => "Block Rating",
+        16 => "Melee Hit Rating",
+        17 => "Ranged Hit Rating",
+        18 => "Spell Hit Rating",
+        19 => "Melee Critical Strike Rating",
+        20 => "Ranged Critical Strike Rating",
+        21 => "Spell Critical Strike Rating",
+        28 => "Melee Haste Rating",
+        29 => "Ranged Haste Rating",
+        30 => "Spell Haste Rating",
+        31 => "Hit Rating",
+        32 => "Critical Strike Rating",
+        35 => "Resilience Rating",
+        36 => "Haste Rating",
+        37 => "Expertise Rating",
+        38 => "Attack Power",
+        39 => "Ranged Attack Power",
+        43 => "Mana per 5 sec",
+        44 => "Armor Penetration Rating",
+        45 => "Spell Power",
+        46 => "Health Regeneration",
+        47 => "Spell Penetration",
+        48 => "Block Value",
+        _ => $"Stat {type}"
+    };
+
+    public static string DamageSchoolName(int type) => type switch
+    {
+        0 => "Physical",
+        1 => "Holy",
+        2 => "Fire",
+        3 => "Nature",
+        4 => "Frost",
+        5 => "Shadow",
+        6 => "Arcane",
+        _ => "Physical"
+    };
+
+    public static string BondingText(int bonding) => bonding switch
+    {
+        1 => "Binds when picked up",
+        2 => "Binds when equipped",
+        3 => "Binds when used",
+        4 or 5 => "Quest Item",
+        _ => string.Empty
+    };
+
+    public static string ItemTypeText(int itemClass, int subClass, int inventoryType)
+    {
+        var slot = inventoryType switch
+        {
+            1 => "Head",
+            2 => "Neck",
+            3 => "Shoulder",
+            4 => "Shirt",
+            5 or 20 => "Chest",
+            6 => "Waist",
+            7 => "Legs",
+            8 => "Feet",
+            9 => "Wrist",
+            10 => "Hands",
+            11 => "Finger",
+            12 => "Trinket",
+            13 => "One-Hand",
+            14 => "Off Hand",
+            15 or 26 => "Ranged",
+            16 => "Back",
+            17 => "Two-Hand",
+            19 => "Tabard",
+            21 => "Main Hand",
+            22 => "Off Hand",
+            23 => "Held In Off-hand",
+            25 => "Thrown",
+            28 => "Relic",
+            _ => string.Empty
+        };
+
+        string subtype = itemClass switch
+        {
+            4 => subClass switch
+            {
+                1 => "Cloth",
+                2 => "Leather",
+                3 => "Mail",
+                4 => "Plate",
+                6 => "Shield",
+                7 => "Libram",
+                8 => "Idol",
+                9 => "Totem",
+                10 => "Sigil",
+                _ => string.Empty
+            },
+            2 => subClass switch
+            {
+                0 => "Axe",
+                1 => "Two-Handed Axe",
+                2 => "Bow",
+                3 => "Gun",
+                4 => "Mace",
+                5 => "Two-Handed Mace",
+                6 => "Polearm",
+                7 => "Sword",
+                8 => "Two-Handed Sword",
+                10 => "Staff",
+                13 => "Fist Weapon",
+                15 => "Dagger",
+                16 => "Thrown",
+                18 => "Crossbow",
+                19 => "Wand",
+                20 => "Fishing Pole",
+                _ => "Weapon"
+            },
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrWhiteSpace(slot))
+            return subtype;
+        if (string.IsNullOrWhiteSpace(subtype))
+            return slot;
+        return $"{slot} • {subtype}";
+    }
+
+    public static string SocketColorName(int color)
+    {
+        var parts = new List<string>();
+        if ((color & 1) != 0) parts.Add("Meta Socket");
+        if ((color & 2) != 0) parts.Add("Red Socket");
+        if ((color & 4) != 0) parts.Add("Yellow Socket");
+        if ((color & 8) != 0) parts.Add("Blue Socket");
+        return parts.Count == 0 ? $"Socket {color}" : string.Join(" / ", parts);
+    }
+
 }

@@ -31,6 +31,80 @@
         </Style>
     </Window.Styles>
 
+    <Window.Resources>
+        <DataTemplate x:Key="ArmoryItemTooltipTemplate"
+                      x:DataType="models:ArmoryEquipmentSlotView">
+            <Border Width="310"
+                    Background="#080B10"
+                    BorderBrush="{Binding AccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="12">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding ItemName}"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               Foreground="{Binding ItemNameBrush}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.ItemLevel, StringFormat='Item Level {0}'}"
+                               FontSize="11"
+                               Foreground="#FFD76A"/>
+                    <TextBlock Text="{Binding Item.BindingText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.TypeText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.DamageText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.SpeedText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.DpsText}"
+                               FontSize="10"
+                               Foreground="#B8B8B8"/>
+                    <TextBlock Text="{Binding Item.ArmorText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.BlockText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+
+                    <TextBlock Text="{Binding Item.StatsText}"
+                               FontSize="11"
+                               Foreground="#FFFFFF"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.ResistancesText}"
+                               FontSize="11"
+                               Foreground="#FFFFFF"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.SocketsText}"
+                               FontSize="11"
+                               Foreground="#D8D8D8"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{Binding Item.RequiredLevelText}"
+                               FontSize="11"
+                               Foreground="#FF5555"/>
+                    <TextBlock Text="{Binding Item.DurabilityText}"
+                               FontSize="11"
+                               Foreground="#F0F0F0"/>
+                    <TextBlock Text="{Binding Item.Description}"
+                               FontSize="11"
+                               FontStyle="Italic"
+                               Foreground="#FFD100"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding EntryText}"
+                               FontSize="9"
+                               Foreground="#666666"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
     <Grid RowDefinitions="138,*,Auto">
 
         <!-- Header -->
@@ -327,6 +401,10 @@
                                                     BorderThickness="1"
                                                     CornerRadius="4"
                                                     MinHeight="53">
+                                                <ToolTip.Tip>
+                                                    <ContentControl Content="{Binding}"
+                                                                    ContentTemplate="{StaticResource ArmoryItemTooltipTemplate}"/>
+                                                </ToolTip.Tip>
                                                 <Grid ColumnDefinitions="50,*">
                                                     <Border Background="#111D27"
                                                             BorderBrush="{Binding AccentBrush}"
@@ -436,6 +514,11 @@
                                                            HorizontalAlignment="Center"
                                                            FontSize="10"
                                                            Foreground="{Binding SelectedCharacter.FactionAccentBrush}"/>
+                                                <TextBlock Text="{Binding SelectedCharacter.Appearance.DebugSummary}"
+                                                           HorizontalAlignment="Center"
+                                                           FontSize="8"
+                                                           Foreground="#5E5A54"
+                                                           Margin="0,4,0,0"/>
                                             </StackPanel>
 
                                             <Border Width="226"
@@ -514,6 +597,10 @@
                                                     BorderThickness="1"
                                                     CornerRadius="4"
                                                     MinHeight="53">
+                                                <ToolTip.Tip>
+                                                    <ContentControl Content="{Binding}"
+                                                                    ContentTemplate="{StaticResource ArmoryItemTooltipTemplate}"/>
+                                                </ToolTip.Tip>
                                                 <Grid ColumnDefinitions="*,50">
                                                     <StackPanel Margin="9,5"
                                                                 VerticalAlignment="Center"
@@ -590,6 +677,10 @@
                                                         BorderBrush="{Binding AccentBrush}"
                                                         BorderThickness="1"
                                                         CornerRadius="4">
+                                                    <ToolTip.Tip>
+                                                        <ContentControl Content="{Binding}"
+                                                                        ContentTemplate="{StaticResource ArmoryItemTooltipTemplate}"/>
+                                                    </ToolTip.Tip>
                                                     <Grid ColumnDefinitions="48,*"
                                                           Margin="4">
                                                         <Border Background="#111D27"
