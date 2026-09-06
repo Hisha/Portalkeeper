@@ -201,7 +201,7 @@ public sealed class ArmoryEquipmentSlotView : INotifyPropertyChanged
     public IBrush AccentBrush => Item?.QualityBrush ?? ArmoryNames.EmptySlotBrush;
     public IBrush ItemNameBrush => Item?.QualityBrush ?? ArmoryNames.EmptySlotTextBrush;
     public bool HasTooltip => Item is not null;
-    public IReadOnlyList<ArmoryItemStat> TooltipStats => Item?.Stats ?? Array.Empty<ArmoryItemStat>();
+    public IReadOnlyList<ArmoryItemStat> TooltipStats => Item?.Stats ?? new List<ArmoryItemStat>();
     public IReadOnlyList<string> TooltipResistances => Item?.ResistanceLines ?? Array.Empty<string>();
     public IReadOnlyList<string> TooltipSockets => Item?.SocketLines ?? Array.Empty<string>();
 
