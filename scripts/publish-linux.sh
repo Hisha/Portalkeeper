@@ -4,10 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RID="linux-x64"
 DIST="$ROOT/dist"
+PROJECT="$ROOT/src/Portalkeeper/Portalkeeper.csproj"
 VERSION="$(dotnet msbuild "$PROJECT" -getProperty:Version)"
 PACKAGE_DIR="$DIST/Portalkeeper-$VERSION-$RID"
 ARCHIVE="$DIST/Portalkeeper-$VERSION-$RID.zip"
-PROJECT="$ROOT/src/Portalkeeper/Portalkeeper.csproj"
+
 
 command -v dotnet >/dev/null 2>&1 || {
     echo "ERROR: dotnet was not found in PATH." >&2
