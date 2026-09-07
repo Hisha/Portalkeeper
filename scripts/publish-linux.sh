@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="0.1.0"
 RID="linux-x64"
 DIST="$ROOT/dist"
+VERSION="$(dotnet msbuild "$PROJECT" -getProperty:Version)"
 PACKAGE_DIR="$DIST/Portalkeeper-$VERSION-$RID"
 ARCHIVE="$DIST/Portalkeeper-$VERSION-$RID.zip"
 PROJECT="$ROOT/src/Portalkeeper/Portalkeeper.csproj"
@@ -28,6 +28,16 @@ dotnet publish "$PROJECT" \
     -r "$RID" \
     --self-contained true \
     -o "$PACKAGE_DIR"
+
+# Bundle StormLib for character previews.
+STORMLIB="/usr/lib/x86_64-linux-gnu/libstorm.so.9"
+
+if [[ ! -f "$STORMLIB" ]]; then
+    echo "ERROR: StormLib was not found at $STORMLIB" >&2
+    exit 1
+fi
+
+cp -L "$STORMLIB" "$PACKAGE_DIR/libstorm.so"
 
 cp "$ROOT/README.md" "$PACKAGE_DIR/README.md"
 cp "$ROOT/LICENSE" "$PACKAGE_DIR/LICENSE"
