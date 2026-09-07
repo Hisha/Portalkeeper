@@ -155,7 +155,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         var slots = LeftEquipmentSlots
             .Concat(RightEquipmentSlots)
             .Concat(BottomEquipmentSlots)
-            .Where(x => x.HasItem && !string.IsNullOrWhiteSpace(x.IconName))
+            .Where(x => x.HasItem)
             .ToArray();
 
         var tasks = slots.Select(async slot =>
@@ -167,6 +167,18 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
                 slot.IconImage = bitmap;
             else
                 bitmap?.Dispose();
+
+            if (slot.Item?.EnchantmentsValid != false && slot.Item is not null)
+            {
+                foreach (var gem in slot.Item.Gems)
+                {
+                    var gemBitmap = await _service.LoadItemIconAsync(gem.Icon);
+                    if (_selectedSummary?.Id == characterId)
+                        gem.IconImage = gemBitmap;
+                    else
+                        gemBitmap?.Dispose();
+                }
+            }
         });
 
         await Task.WhenAll(tasks);

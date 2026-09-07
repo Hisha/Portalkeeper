@@ -89,6 +89,85 @@ public sealed class ArmoryItemDamage
     [JsonIgnore] public string SchoolName => ArmoryNames.DamageSchoolName(Type);
 }
 
+public sealed class ArmoryEnchantEffect
+{
+    public int Type { get; set; }
+    public uint Amount { get; set; }
+    public int Argument { get; set; }
+    // Only stat effects have enough information to format without spell resolution.
+    [JsonIgnore] public string Text => Type == 5
+        ? $"+{Amount} {ArmoryNames.StatName(Argument)}" : string.Empty;
+}
+
+public sealed class ArmoryEnchant
+{
+    public uint Id { get; set; }
+    public uint Duration { get; set; }
+    public uint Charges { get; set; }
+    public bool Resolved { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public int ConditionId { get; set; }
+    public List<ArmoryEnchantEffect> Effects { get; set; } = new();
+    [JsonIgnore] public string Text => !Resolved ? string.Empty :
+        !string.IsNullOrWhiteSpace(Description) ? Description :
+        string.Join(", ", Effects.Where(e => e.Text.Length > 0).Select(e => e.Text));
+}
+
+public sealed class ArmoryGem : INotifyPropertyChanged
+{
+    public int SocketIndex { get; set; }
+    public ArmoryEnchant? Enchant { get; set; }
+    public int Entry { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Icon { get; set; } = string.Empty;
+    public int? Quality { get; set; }
+    public int Color { get; set; }
+    [JsonIgnore] public IBrush QualityBrush => ArmoryNames.QualityBrush(Quality ?? -1);
+    [JsonIgnore] public string EffectText => Enchant?.Text ?? string.Empty;
+    [JsonIgnore] public string ColorText => Color switch
+    {
+        1 => "Meta", 2 => "Red", 4 => "Yellow", 8 => "Blue", 6 => "Orange",
+        10 => "Purple", 12 => "Green", 14 => "Prismatic", _ => string.Empty
+    };
+    private Bitmap? _iconImage;
+    [JsonIgnore] public Bitmap? IconImage
+    {
+        get => _iconImage;
+        set { _iconImage = value; PropertyChanged?.Invoke(this, new(nameof(IconImage))); }
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+public sealed class ArmorySocket
+{
+    public int Index { get; set; }
+    public int Color { get; set; }
+}
+
+public sealed class ArmorySocketView
+{
+    public int Index { get; init; }
+    public int Color { get; init; }
+    public ArmoryGem? Gem { get; init; }
+    public bool HasGem => Gem is not null;
+    public string Label => Color > 0 ? ArmoryNames.SocketColorName(Color) : $"Socket {Index + 1}";
+}
+
+public sealed class ArmoryItemSpell
+{
+    public int Id { get; set; }
+    public int Trigger { get; set; }
+    public int Charges { get; set; }
+    public double PpmRate { get; set; }
+    public int Cooldown { get; set; }
+    public int Category { get; set; }
+    public int CategoryCooldown { get; set; }
+    public string Name { get; set; } = string.Empty;
+    [JsonIgnore] public string Text => string.IsNullOrWhiteSpace(Name) ? string.Empty :
+        (Trigger switch { 0 or 5 => "Use: ", 1 => "Equip: ", 2 => "Chance on hit: ",
+            6 => "Learn: ", _ => string.Empty }) + Name;
+}
+
 public sealed class ArmoryEquipmentItem
 {
     public int Slot { get; set; }
@@ -120,6 +199,43 @@ public sealed class ArmoryEquipmentItem
     public List<int> SocketColors { get; set; } = new();
     public string Enchantments { get; set; } = string.Empty;
 
+    public bool? EnchantmentsValid { get; set; }
+    public ArmoryEnchant? PermanentEnchant { get; set; }
+    public ArmoryEnchant? TemporaryEnchant { get; set; }
+    public ArmoryEnchant? PrismaticEnchant { get; set; }
+    public List<ArmoryGem> Gems { get; set; } = new();
+    public List<ArmorySocket>? Sockets { get; set; }
+    public ArmoryEnchant? SocketBonus { get; set; }
+    public int SocketBonusId { get; set; }
+    public List<ArmoryItemSpell> Spells { get; set; } = new();
+    public double? WeaponSpeed { get; set; }
+    public double? WeaponDps { get; set; }
+
+    [JsonIgnore] public string EnchantText => EnchantmentsValid == false ? string.Empty :
+        string.Join(Environment.NewLine, new[] {
+            EnchantLine("Enchanted", PermanentEnchant), EnchantLine("Temporary enchant", TemporaryEnchant),
+            EnchantLine("Prismatic enchant", PrismaticEnchant) }.Where(x => x.Length > 0));
+    private static string EnchantLine(string label, ArmoryEnchant? enchant) =>
+        string.IsNullOrWhiteSpace(enchant?.Text) ? string.Empty : $"{label}: {enchant.Text}";
+    [JsonIgnore] public string SocketBonusText => EnchantmentsValid == false ? string.Empty :
+        EnchantLine("Socket Bonus", SocketBonus);
+    [JsonIgnore] public string SpellsText => string.Join(Environment.NewLine,
+        Spells.Select(x => x.Text).Where(x => x.Length > 0));
+    [JsonIgnore] public IReadOnlyList<ArmorySocketView> SocketViews
+    {
+        get
+        {
+            var sockets = Sockets ?? SocketColors.Select((color, index) =>
+                new ArmorySocket { Index = index, Color = color }).ToList();
+            var gems = EnchantmentsValid == false ? new List<ArmoryGem>() : Gems;
+            return sockets.Select(x => x.Index).Union(gems.Select(x => x.SocketIndex)).OrderBy(x => x)
+                .Select(index => new ArmorySocketView { Index = index,
+                    Color = sockets.FirstOrDefault(x => x.Index == index)?.Color ?? 0,
+                    Gem = gems.FirstOrDefault(x => x.SocketIndex == index) })
+                .Where(x => x.Color != 0 || x.HasGem).ToArray();
+        }
+    }
+
     [JsonIgnore] public string SlotName => ArmoryNames.SlotName(Slot);
     [JsonIgnore] public string SlotAbbreviation => ArmoryNames.SlotAbbreviation(Slot);
     [JsonIgnore] public string QualityName => ArmoryNames.QualityName(Quality);
@@ -133,18 +249,18 @@ public sealed class ArmoryEquipmentItem
         MaxDurability > 0 ? $"Durability {CurrentDurability} / {MaxDurability}" : string.Empty;
     [JsonIgnore] public string ArmorText => Armor > 0 ? $"{Armor:N0} Armor" : string.Empty;
     [JsonIgnore] public string BlockText => Block > 0 ? $"{Block:N0} Block" : string.Empty;
-    [JsonIgnore] public string DamageText =>
-        Damage.Count > 0 ? $"{Damage[0].Min:0.#} - {Damage[0].Max:0.#} {Damage[0].SchoolName} Damage" : string.Empty;
-    [JsonIgnore] public string SpeedText => Delay > 0 ? $"Speed {Delay / 1000.0:0.00}" : string.Empty;
+    [JsonIgnore] public string DamageText => string.Join(Environment.NewLine,
+        Damage.Select(d => $"{d.Min:0.#} - {d.Max:0.#} {d.SchoolName} Damage"));
+    [JsonIgnore] public string SpeedText => (WeaponSpeed ?? Delay / 1000.0) is var speed && speed > 0
+        ? $"Speed {speed:0.00}" : string.Empty;
     [JsonIgnore] public string DpsText
     {
         get
         {
-            if (Delay <= 0 || Damage.Count == 0)
-                return string.Empty;
-            var average = (Damage[0].Min + Damage[0].Max) / 2.0;
-            var dps = average / (Delay / 1000.0);
-            return $"({dps:0.0} damage per second)";
+            var speed = WeaponSpeed ?? Delay / 1000.0;
+            var dps = WeaponDps ?? (speed > 0 && Damage.Count > 0
+                ? Damage.Sum(d => (d.Min + d.Max) / 2.0) / speed : (double?)null);
+            return dps.HasValue ? $"({dps:0.0} damage per second)" : string.Empty;
         }
     }
 

@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Portalkeeper.ViewModels"
         xmlns:models="using:Portalkeeper.Models"
+        xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="Portalkeeper.Views.ArmoryWindow"
         x:DataType="vm:ArmoryViewModel"
         Title="Realm Armory"
@@ -49,48 +50,70 @@
                     <TextBlock Text="{Binding Item.ItemLevel, StringFormat='Item Level {0}'}"
                                FontSize="11"
                                Foreground="#FFD76A"/>
-                    <TextBlock Text="{Binding Item.BindingText}"
+                    <TextBlock IsVisible="{Binding Item.BindingText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.BindingText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.TypeText}"
+                    <TextBlock IsVisible="{Binding Item.TypeText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.TypeText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.DamageText}"
+                    <TextBlock IsVisible="{Binding Item.DamageText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.DamageText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.SpeedText}"
+                    <TextBlock IsVisible="{Binding Item.SpeedText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.SpeedText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.DpsText}"
+                    <TextBlock IsVisible="{Binding Item.DpsText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.DpsText}"
                                FontSize="10"
                                Foreground="#B8B8B8"/>
-                    <TextBlock Text="{Binding Item.ArmorText}"
+                    <TextBlock IsVisible="{Binding Item.ArmorText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.ArmorText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.BlockText}"
+                    <TextBlock IsVisible="{Binding Item.BlockText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.BlockText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
 
-                    <TextBlock Text="{Binding Item.StatsText}"
+                    <TextBlock IsVisible="{Binding Item.StatsText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.StatsText}"
                                FontSize="11"
                                Foreground="#FFFFFF"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding Item.ResistancesText}"
+                    <TextBlock IsVisible="{Binding Item.ResistancesText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.ResistancesText}"
                                FontSize="11"
                                Foreground="#FFFFFF"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding Item.SocketsText}"
-                               FontSize="11"
-                               Foreground="#D8D8D8"
-                               TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{Binding Item.SocketViews}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:ArmorySocketView">
+                                <StackPanel Margin="0,3,0,0" Spacing="2">
+                                    <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#9D9D9D"/>
+                                    <Grid ColumnDefinitions="24,*" IsVisible="{Binding HasGem}">
+                                        <Image Source="{Binding Gem.IconImage}" Width="20" Height="20"
+                                               VerticalAlignment="Top"/>
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock IsVisible="{Binding Gem.Name, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Gem.Name}" Foreground="{Binding Gem.QualityBrush}"
+                                                       FontSize="11" TextWrapping="Wrap"/>
+                                            <TextBlock IsVisible="{Binding Gem.ColorText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Gem.ColorText}" Foreground="#9D9D9D" FontSize="10"/>
+                                            <TextBlock IsVisible="{Binding Gem.EffectText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Gem.EffectText}" Foreground="#1EFF00"
+                                                       FontSize="11" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock IsVisible="{Binding Item.SocketBonusText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.SocketBonusText}" FontSize="11"
+                               Foreground="#1EFF00" TextWrapping="Wrap"/>
+                    <TextBlock IsVisible="{Binding Item.EnchantText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.EnchantText}" FontSize="11"
+                               Foreground="#1EFF00" TextWrapping="Wrap"/>
+                    <TextBlock IsVisible="{Binding Item.SpellsText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.SpellsText}" FontSize="11"
+                               Foreground="#1EFF00" TextWrapping="Wrap"/>
 
-                    <TextBlock Text="{Binding Item.RequiredLevelText}"
+                    <TextBlock IsVisible="{Binding Item.RequiredLevelText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.RequiredLevelText}"
                                FontSize="11"
                                Foreground="#FF5555"/>
-                    <TextBlock Text="{Binding Item.DurabilityText}"
+                    <TextBlock IsVisible="{Binding Item.DurabilityText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.DurabilityText}"
                                FontSize="11"
                                Foreground="#F0F0F0"/>
-                    <TextBlock Text="{Binding Item.Description}"
+                    <TextBlock IsVisible="{Binding Item.Description, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}" Text="{Binding Item.Description}"
                                FontSize="11"
                                FontStyle="Italic"
                                Foreground="#FFD100"
