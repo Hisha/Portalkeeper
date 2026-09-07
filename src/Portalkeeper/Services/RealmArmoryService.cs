@@ -15,10 +15,10 @@ public sealed class RealmArmoryService
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly string _cacheDirectory;
 
-    public RealmArmoryService()
+    public RealmArmoryService(string? cacheDirectory = null)
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        _cacheDirectory = Path.Combine(appData, "Portalkeeper", "armory-cache");
+        _cacheDirectory = cacheDirectory ?? Path.Combine(appData, "Portalkeeper", "armory-cache");
         Directory.CreateDirectory(_cacheDirectory);
     }
 

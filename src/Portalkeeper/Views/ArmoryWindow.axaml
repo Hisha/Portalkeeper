@@ -502,8 +502,11 @@
                                                        Foreground="#9C9284"/>
                                         </StackPanel>
 
-                                        <Grid Grid.Row="1"
-                                              Margin="18">
+                                        <Grid Grid.Row="1" Margin="8" RowDefinitions="*,Auto">
+                                            <Image x:Name="CharacterPreviewImage" Grid.Row="0"
+                                                   Source="{Binding PreviewImage}" IsVisible="{Binding HasPreview}"
+                                                   Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                                        <Grid IsVisible="{Binding ShowPreviewFallback}">
                                             <Ellipse Width="168"
                                                      Height="168"
                                                      Fill="#0E1D28"
@@ -551,6 +554,14 @@
                                                     CornerRadius="113"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                            <StackPanel Grid.Row="1" Spacing="4" Margin="8,3">
+                                                <ProgressBar IsVisible="{Binding LoadingPreview}" IsIndeterminate="True" Height="3"/>
+                                                <TextBlock Text="{Binding PreviewStatus}" FontSize="10" Foreground="#9C9284"
+                                                           TextWrapping="Wrap" TextAlignment="Center"
+                                                           IsVisible="{Binding PreviewStatus, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+                                            </StackPanel>
                                         </Grid>
 
                                         <Grid Grid.Row="2"

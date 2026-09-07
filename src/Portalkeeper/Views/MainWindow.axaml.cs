@@ -112,7 +112,7 @@ public partial class MainWindow : Window
 
         var window = new ArmoryWindow
         {
-            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService)
+            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService, viewModel.ClientPath)
         };
         await window.ShowDialog(this);
     }

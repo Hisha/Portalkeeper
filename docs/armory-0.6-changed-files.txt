@@ -1,0 +1,13 @@
+docs/armory-0.6-integration.md
+src/Portalkeeper/Views/ArmoryWindow.axaml.cs
+src/Portalkeeper/Views/MainWindow.axaml.cs
+src/Portalkeeper/Views/ArmoryWindow.axaml
+src/Portalkeeper/ViewModels/ArmoryViewModel.cs
+src/Portalkeeper/Services/RealmArmoryService.cs
+src/Portalkeeper/Services/ArmoryPreviewService.cs
+src/Portalkeeper/Services/CharacterRendering/CharacterRasterizer.cs
+src/Portalkeeper/Services/CharacterRendering/CharacterScene.cs
+src/Portalkeeper/Services/CharacterRendering/ClientTexture.cs
+src/Portalkeeper/Services/CharacterRendering/ClientMesh.cs
+src/Portalkeeper/Services/CharacterRendering/ClientAssets.cs
+docs/armory-0.6-changed-files.txt

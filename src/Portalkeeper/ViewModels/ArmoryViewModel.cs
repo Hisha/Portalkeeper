@@ -5,14 +5,31 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Threading;
+using Avalonia.Media.Imaging;
 using Portalkeeper.Models;
 using Portalkeeper.Services;
 
 namespace Portalkeeper.ViewModels;
 
-public sealed class ArmoryViewModel : INotifyPropertyChanged
+public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly RealmArmoryService _service;
+    private readonly ArmoryPreviewService _previews;
+    private readonly string _clientFolder;
+    private CancellationTokenSource? _previewCancellation;
+    private long _selectionVersion;
+    private bool _disposed;
+    private Bitmap? _previewImage;
+    private bool _loadingPreview;
+    private string _previewStatus = string.Empty;
+    public Bitmap? PreviewImage { get => _previewImage; private set { var old=_previewImage; _previewImage=value; OnPropertyChanged(); OnPropertyChanged(nameof(HasPreview)); OnPropertyChanged(nameof(ShowPreviewFallback)); old?.Dispose(); } }
+    public bool HasPreview => PreviewImage is not null;
+    public bool ShowPreviewFallback => !HasPreview;
+    public bool LoadingPreview { get => _loadingPreview; private set { _loadingPreview=value; OnPropertyChanged(); } }
+    public string PreviewStatus { get => _previewStatus; private set { _previewStatus=value; OnPropertyChanged(); } }
+    public Task SelectionTask { get; private set; } = Task.CompletedTask;
+
     private readonly string _indexUrl;
     private readonly List<ArmoryCharacterSummary> _all;
 
@@ -23,9 +40,11 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
     private string _status;
     private bool _loadingProfile;
 
-    public ArmoryViewModel(RealmArmoryIndex feed, string indexUrl, string status, RealmArmoryService service)
+    public ArmoryViewModel(RealmArmoryIndex feed, string indexUrl, string status, RealmArmoryService service, string? clientFolder = null, ArmoryPreviewService? previews = null)
     {
         _service = service;
+        _clientFolder = clientFolder ?? new SettingsService().Load().ClientPath;
+        _previews = previews ?? new ArmoryPreviewService();
         _indexUrl = indexUrl;
         _status = status;
         _all = feed.Characters.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
@@ -88,8 +107,18 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
             _selectedSummary = value;
             OnPropertyChanged();
 
+            long version = ++_selectionVersion;
+            _previewCancellation?.Cancel();
+            _previewCancellation?.Dispose();
+            _previewCancellation = new CancellationTokenSource();
+            PreviewImage = null;
+            PreviewStatus = string.Empty;
+            LoadingPreview = false;
+            SelectedCharacter = null;
             if (value is not null)
-                _ = LoadProfileAsync(value.Id);
+                SelectionTask = LoadProfileAsync(value.Id, version, _previewCancellation.Token);
+            else
+                LoadingProfile = false;
         }
     }
 
@@ -150,7 +179,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
             BottomEquipmentSlots.Add(new ArmoryEquipmentSlotView(slot, bySlot.GetValueOrDefault(slot)));
     }
 
-    private async Task LoadEquipmentIconsAsync(ulong characterId)
+    private async Task LoadEquipmentIconsAsync(ulong characterId, long version)
     {
         var slots = LeftEquipmentSlots
             .Concat(RightEquipmentSlots)
@@ -163,7 +192,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
             var bitmap = await _service.LoadItemIconAsync(slot.IconName);
 
             // Selection may have changed while icons were downloading.
-            if (_selectedSummary?.Id == characterId)
+            if (!_disposed && version == _selectionVersion && _selectedSummary?.Id == characterId)
                 slot.IconImage = bitmap;
             else
                 bitmap?.Dispose();
@@ -173,7 +202,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
                 foreach (var gem in slot.Item.Gems)
                 {
                     var gemBitmap = await _service.LoadItemIconAsync(gem.Icon);
-                    if (_selectedSummary?.Id == characterId)
+                    if (!_disposed && version == _selectionVersion && _selectedSummary?.Id == characterId)
                         gem.IconImage = gemBitmap;
                     else
                         gemBitmap?.Dispose();
@@ -184,26 +213,61 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged
         await Task.WhenAll(tasks);
     }
 
-    private async Task LoadProfileAsync(ulong id)
+    private async Task LoadProfileAsync(ulong id, long version, CancellationToken token)
     {
         LoadingProfile = true;
         try
         {
             var result = await _service.LoadProfileAsync(_indexUrl, id);
 
-            if (_selectedSummary?.Id == id)
+            if (!_disposed && version == _selectionVersion && !token.IsCancellationRequested)
             {
                 SelectedCharacter = result.Profile?.Character;
                 Status = result.Status;
 
                 if (SelectedCharacter is not null)
-                    _ = LoadEquipmentIconsAsync(id);
+                {
+                    _ = LoadEquipmentIconsAsync(id, version);
+                    LoadingProfile = false;
+                    LoadingPreview = true;
+                    PreviewStatus = "Loading character preview…";
+                    var preview = await _previews.LoadAsync(SelectedCharacter, _indexUrl, _clientFolder, token);
+                    if (!_disposed && version == _selectionVersion && !token.IsCancellationRequested)
+                    {
+                        if (preview.ImagePath is not null)
+                        {
+                            try { PreviewImage = new Bitmap(preview.ImagePath); }
+                            catch { PreviewStatus = "Character preview could not be displayed."; }
+                        }
+                        if (PreviewImage is not null || preview.ImagePath is null) PreviewStatus = preview.Status;
+                    }
+                }
             }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception)
+        {
+            if (!_disposed && version == _selectionVersion) PreviewStatus = "Character preview is unavailable. Equipment details are still available.";
         }
         finally
         {
-            LoadingProfile = false;
+            if (!_disposed && version == _selectionVersion)
+            {
+                LoadingProfile = false;
+                LoadingPreview = false;
+            }
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        ++_selectionVersion;
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        _previewCancellation = null;
+        PreviewImage = null;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
