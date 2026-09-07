@@ -1,5 +1,7 @@
 # Static Armory rendering corrections
 
+Implementation/verification report; see [current instructions](armory-0.6-integration.md) and [verification limits](verification.md).
+
 Diagnosed from the current published Hipally profile, the installed 3.3.5 client, and the supplied Armory (15:01:56) and WoW character-selection (15:02:23) screenshots on September 7, 2026.
 
 ## Causes and fixes
@@ -13,7 +15,7 @@ Preview cache version is now armory-render-v3. Existing previews regenerate auto
 
 ## Verification
 
-The application was built and the real Avalonia Armory window exercised using Headless/Skia against the current published profiles served over local HTTP. Hipally's transmog and original-gear modes, Abidraan, Ailania, Bullsha and Deyvia render successfully; repeat loads reuse the new preview cache. The added tests/ArmoryMaterialChecks exercise opaque, cutout and additive alpha rules against the actual material type.
+The application was built and the real Avalonia Armory window exercised using Headless/Skia against the current published profiles served over local HTTP. Hipally's transmog and original-gear modes, Abidraan, Ailania, Bullsha and Deyvia render successfully; repeat loads reuse the new preview cache. A historical ArmoryMaterialChecks harness exercised opaque, cutout and additive alpha rules against the actual material type; that harness is not present in this checkout.
 
 ## Remaining differences
 

@@ -1,6 +1,8 @@
 # Armory 0.6 proof results — Hipally
 
-Status: **minimal dressed-character rendering proved; UI integration not performed**.
+Status at the historical prototype milestone: **minimal dressed-character rendering proved; UI integration not yet performed**.
+
+The application is now integrated. Use [current preview instructions](armory-0.6-integration.md) and the [README](../README.md). The standalone probe mentioned below is not present in this checkout. This report preserves historical evidence, not current installation instructions.
 
 The existing Armory UI, roster, filters, paper doll, icons, tooltips, appearance
 fields and quality colors remain unchanged. The added utility is deliberately
@@ -75,11 +77,11 @@ This does not establish the executable's total archive order or custom patch
 semantics. The full audit and omitted-material-pass report are generated in the
 cache, not stored with client bytes in the repository.
 
-## Integration gate
+## Historical integration gate (subsequently completed for static previews)
 
 This proves that existing JSON plus the client DBC/M2/SKIN/BLP data can produce a
 dressed Hipally. It does not justify replacing the current UI with this research
 renderer. Before application integration, choose a .NET rendering path, validate
 additional race/gender and gear cases, implement material/animation handling,
 and define cache/error/lifetime behavior. Windows native packaging and custom
-patch handling remain unverified. See the probe README for commands and sources.
+patch handling remain unverified. The separate prototype artifact contained its own commands and sources; those are not available in this checkout.

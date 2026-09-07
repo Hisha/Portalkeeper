@@ -1,23 +1,17 @@
-# Armory 0.6: integrated static previews
+# Current Armory static previews
 
-Selecting a character loads a dressed preview into the existing Armory paper doll, using the profile's race, gender, appearance and equipment display IDs and the local client folder configured in Settings. No server or JSON changes are required. Existing slots, tooltips, roster filtering and icons are retained.
+This is the current application guide, superseding the [historical MPQ proof](armory-0.6-proof.md). See the [README](../README.md) for build/configuration and native dependencies, and [operations](operations.md) for caches and fallback troubleshooting.
 
-Build with `dotnet build`, then run `dotnet run --project src/Portalkeeper` using the .NET 10 SDK. Linux requires native StormLib (`libstorm.so` or `libstorm.so.9`). Choose the folder containing the client's Data directory in Settings. Windows loading attempts StormLib.dll, but Windows packaging remains unverified. macOS is also unverified.
+Selecting a character renders its race, gender, exact exported appearance and equipment using the configured local 3.3.5a client. Existing roster, equipment slots, icons, quality colors and tooltips remain. Optional [transmog](armory-transmog.md) projects appearance metadata for rendering without replacing the real equipment data.
 
-The renderer is C#: it reads MPQs, resolves eight DBC tables, composes armor textures, skins M2 models and equipment attachments, and creates a static PNG. Python and the standalone probe are not required at runtime.
+Runtime is C#: `ArmoryPreviewService` plus `Services/CharacterRendering`. It reads MPQs with read-only StormLib, resolves eight DBC tables, decodes M2/SKIN/BLP assets, composes body textures and equipment attachments, and rasterizes a static 480×640 PNG. Python and the historical standalone probe are not runtime dependencies. Background loading, cancellation, cached previews and explanatory placeholder fallback are integrated into the actual Armory view.
 
-Loading runs in the background. Changing selection cancels obsolete rendering and prevents stale images from replacing the selected character. Closing Armory cancels pending rendering. Missing assets or native libraries retain the placeholder and equipment UI with an explanation.
+The resolver handles ten playable races and both genders, facial/hair geosets, race-specific helmets, armor layers, robes, bare feet, capes, shoulders and equipped weapons. CharSections requires exact exported indices; class flags influence stable preference among matching records but do not reject an otherwise matching appearance solely because of class.
 
-Only completed PNGs are cached under the per-user Portalkeeper/armory-cache/previews folder. Keys include realm URL, visual JSON, and archive paths, sizes and modification times. Cache writes are atomic, corrupt images regenerate, and the cache is limited to 200 images. Raw client assets stay in memory; client archives are never modified.
+Stock archive priority is locale/global patch-3, locale/global patch-2, locale/global patch, locale lichking/expansion/base, then global lichking/expansion/common-2/common. The first available locale in the resolver's fixed locale list is used. The supplied Linux client's dependency set was exercised; this is not proof of all client/custom-patch layouts. Unsupported patch names and encountered delta/deletion entries trigger fallback.
 
-Resolution supports all ten playable 3.3.5 races and both genders without a character-ID special case. It handles race-specific helmets, facial/hair geosets, armor layers, robes, bare feet, cape, shoulders and equipped weapons. Rendering uses the initial embedded Stand pose when available. Animated particles, reflective/additive materials, weapon enchant glows, precise grip animations and rotation are outside this static milestone.
+Rendering uses the initial embedded Stand pose where available. Opaque material alpha does not cut holes; alpha-key materials use their cutoff. Material culling/unlit flags and independent static additive geometry such as helmet eyes are supported. A corrected camera basis determines handedness. The portrait uses Human selection lighting read as numeric data from optional client GlueXML, with neutral fallback; it does not execute Lua. See the [material correction report](armory-material-rendering-fix.md).
 
-Customized guild-tabard artwork is omitted because the JSON lacks emblem/background/border customization. No emblem is invented; its equipment tooltip remains available. Stock archive precedence was checked against the extraction proof on the supplied Linux client. Unknown patch names and encountered delta-patch records fall back. Arbitrary custom patches and other client builds remain unverified.
+Previews remain static and orthographic. Animation and particle effects are outside scope. Exact grip pose, scene perspective, race-specific selection backgrounds, environment/reflection layers, bloom and animated enchant glows are not reproduced. Guild-tabard emblem/background/border customization is absent from the JSON and is not invented; equipment information remains visible.
 
-The earlier tools/ArmoryClientProbe and proof documentation are preserved as historical research. Runtime code is in Services/CharacterRendering and ArmoryPreviewService.
-
-## Verification
-
-Release build passed with zero warnings and zero errors. An Avalonia Headless/Skia check opened the actual ArmoryWindow, served the supplied published JSON over local HTTP, selected Hipally, and captured the dressed character inside the application with 17 equipped items. Identical-preview cache reuse and missing-client fallback passed. The check uses the real view, bindings, view model and rendering service, not a mock webpage. Native desktop interaction and Windows packaging were not tested.
-
-All 20 race/gender combinations produced previews using default appearance selections and the example equipment set. This checks general resolution, not every customization or item combination.
+Linux functionality was exercised in this session with focused Headless/Skia application-view checks, not exhaustive native desktop validation. Windows runtime and packaging remain pending. See the [verification checklist](verification.md).

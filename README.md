@@ -1,38 +1,42 @@
 # Portalkeeper
 
-Portalkeeper is an independent, cross-platform realm launcher and addon manager for **World of Warcraft 3.3.5a (build 12340)**. It is designed to make a private realm easier to use without distributing or modifying the game client itself.
+Portalkeeper is an independent realm launcher, addon manager and public realm-information viewer for **World of Warcraft 3.3.5a, build 12340**. It remains **under development**. It is not affiliated with AzerothCore or Blizzard Entertainment.
 
-Portalkeeper can validate a 3.3.5a client, apply the selected realm's `realmlist.wtf`, check realm availability, manage required/recommended/personal addons, install and update GitHub-hosted addons, display realm news and the public realm calendar, and launch World of Warcraft on Windows or Linux.
+Linux functionality has been exercised in this session, including focused Armory checks; this is not exhaustive validation of every launcher, addon, client or realm configuration. **Windows runtime and packaging verification are pending.** Character previews are static; animation and particle effects are outside the current scope.
 
-> Portalkeeper is an independent, community-developed project. It is not affiliated with or endorsed by AzerothCore, the AzerothCore development team, Blizzard Entertainment, or World of Warcraft.
+## Current functionality
 
-## Current status
+- Validate a local client, discover one realm configuration, check authentication/world TCP reachability, prepare `realmlist.wtf` and launch WoW directly on Windows or through Wine on Linux. An unavailable health probe alone does not block launch.
+- Manage realm-required, recommended and personal addons, discover GitHub addon metadata, install/update managed folders and back up replacements. Required-addon readiness gates entry; unrelated addons and SavedVariables are retained.
+- Display optional realm news, a public monthly event calendar and the Armory, with downloaded-data fallback when available.
+- Search/filter the Armory roster by players or playerbots, inspect the existing equipment paper doll, quality colors, icons and detailed tooltips, and load dressed static character previews in the background.
+- Apply optional transmog appearances, including hidden equipment, while keeping original item information in slots/tooltips. Save the display preference per realm Armory URL.
 
-Version **0.1.0** is under active development. Linux functionality has been validated with a published build. Windows validation and packaging are still in progress.
+Portalkeeper does not distribute the client or store game account credentials. Launching writes the selected client's realmlist; addon installation writes managed addon folders. Preview extraction itself only reads client archives and does not modify them.
 
-## What Portalkeeper manages
+## Build and run
 
-Portalkeeper intentionally keeps its scope narrow:
+Source builds require the **.NET 10 SDK** and package restore access. Git is useful for obtaining source, not required by the running addon downloader. From the repository root:
 
-- validates a WoW 3.3.5a build 12340 installation;
-- discovers one local `*.realm.conf` file and writes the appropriate `realmlist.wtf` when launching;
-- checks authentication and world-server reachability without blocking launch solely because a health probe fails;
-- reads realm addon policy from `config/addons.json` or a configured remote manifest;
-- supports required, recommended, and personal addons;
-- discovers GitHub-hosted addons from their repository and `.toc` metadata;
-- installs/updates only addons Portalkeeper manages;
-- backs up an existing managed addon before replacing it;
-- preserves unrelated addons and WoW `WTF`/SavedVariables data;
-- launches WoW directly on Windows and through Wine on Linux;
-- can hide while WoW is running and restore when the game exits;
-- can consume a schema-v1 Realm News feed from `mod-realm-news` with local cache fallback;
-- can consume the public calendar feed from `mod-realm-calendar`.
+```sh
+dotnet restore
+dotnet build
+dotnet run --project src/Portalkeeper/Portalkeeper.csproj
+```
 
-Portalkeeper does **not** download or distribute World of Warcraft, store account credentials, or modify AzerothCore server code.
+The root [Portalkeeper.slnx](Portalkeeper.slnx) and [application project](src/Portalkeeper/Portalkeeper.csproj) are the build targets. Source runs require the SDK; the Linux publishing script creates a self-contained .NET application:
 
-## Realm configuration
+```sh
+./scripts/publish-linux.sh
+```
 
-Copy `config/example.realm.conf` to a new file ending in `.realm.conf`, for example:
+It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.1.0-linux-x64.zip`. This review does not change release versions. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols; Windows packaging is not verified.
+
+## Client and realm setup
+
+Select the local folder containing `Wow.exe` and `Data` in Settings, for example `/path/to/WoW-335a` or `C:\Games\WoW-335a`. Executable validation checks supported metadata/build markers; it does not validate every archive. Linux launching requires `wine` or `wine64` on PATH. The launcher honors `WINEPREFIX`, otherwise tries matching desktop-launcher prefix information and then Wine's default prefix. Settings shows the detected launch environment.
+
+Copy [config/example.realm.conf](config/example.realm.conf) to `config/my-realm.realm.conf` beside the executable (or in the source working directory during development):
 
 ```ini
 [Server]
@@ -46,97 +50,54 @@ ManifestURL=
 NewsURL=
 StatusURL=
 CalendarURL=
+ArmoryURL=https://realm.example.com/armory/index.json
 ```
 
-`AuthPort` and `WorldPort` are optional and default to `3724` and `8085`.
+`Name` and `Address` are required; ports default to 3724 and 8085. Keep exactly one non-example `*.realm.conf`: discovery searches the working directory, executable directory and each one's `config/` child. The example is ignored; multiple files disable realm selection rather than providing a realm picker. Use **CHECK AGAIN** after correcting configuration. Private realm files are not copied by the project automatically; install your configuration separately.
 
-Place the private realm file either beside the Portalkeeper executable or, preferably, in Portalkeeper's `config/` folder. Portalkeeper deliberately ignores `example.realm.conf`. If no usable realm file is present, the Realm card explains what to do and provides **CHECK AGAIN**, so a restart is not required after adding the file.
+All feed URLs are optional. `ManifestURL` overrides local `config/addons.json`. `NewsURL`, `CalendarURL` and `ArmoryURL` enable their corresponding views. **`StatusURL` is parsed but not consumed**; current health status comes from TCP probes, not an HTTP status feed. Keep private values out of public source/packages.
 
-Private `*.realm.conf` files are ignored by Git and should not be committed to a public repository.
+## Optional integrations and dependencies
 
-### Realm News and Calendar
+| Feature | Required for that feature | Optional / fallback |
+|---|---|---|
+| Launcher | Local supported client; configured realm; Wine on Linux | TCP health is advisory. |
+| Addon installation | Writable client addon directory and reachable source | Local or remote manifest; personal GitHub sources. |
+| News/calendar | HTTP(S) schema-v1 feeds from mod-realm-news/mod-realm-calendar | Last cached feed on failure. No server database access. |
+| Armory equipment | HTTP(S) schema-v1 mod-realm-armory feed | Cached roster/profiles; icons may be unavailable. |
+| Static previews | Local compatible client MPQs and native StormLib matching process architecture | Missing assets/library keep equipment UI and an explanatory placeholder. |
+| Transmog previews | Explicit capability in both roster and profile, resolved appearance metadata | Older/unsupported feeds show original equipment. No mandatory mod-transmog dependency. |
 
-`NewsURL` and `CalendarURL` are optional. When present, Portalkeeper exposes **REALM NEWS** and **REALM CALENDAR** from the main launcher. Both consumers cache the last good JSON response so temporary web-server outages do not erase previously downloaded information.
+Linux preview loading tries `libstorm.so` then `libstorm.so.9`; Windows tries `StormLib.dll`. Install the native library and its transitive dependencies where the operating-system loader can find them. No StormLib binary is supplied by the project or Linux packaging script. A macOS library name exists in the resolver, but macOS runtime/launch support is not validated.
 
-`NewsURL` expects the schema-v1 feed published by `mod-realm-news`; `CalendarURL` expects the schema-v1 feed from `mod-realm-calendar`. Keep private feed URLs in the private `*.realm.conf`, not in the public example file.
+## Addon management
 
-## Realm addon policy
-
-`config/addons.json` describes addons managed by the realm. GitHub-hosted addons normally need only their repository URL:
+[config/addons.json](config/addons.json) uses `manifestVersion: 1` and an `addons` array. A generic GitHub entry is:
 
 ```json
-{
-  "manifestVersion": 1,
-  "addons": [
-    {
-      "id": "example-addon",
-      "name": "ExampleAddon",
-      "required": false,
-      "recommended": true,
-      "gitUrl": "https://github.com/owner/repository"
-    }
-  ]
-}
+{"id":"example-addon","name":"ExampleAddon","required":false,"recommended":true,"gitUrl":"https://github.com/owner/repository"}
 ```
 
-Portalkeeper discovers the repository's default branch, current commit, addon folder, `.toc`, and `## Version` automatically when possible. `addonPath` can be supplied for genuinely ambiguous multi-addon repositories.
+GitHub discovery resolves the default branch, commit, addon directory, `.toc` and version where available. `addonPath` disambiguates repositories; `folder` and `version` are available overrides. Direct ZIP sources use `downloadUrl` and `sha256` with folder metadata. See [AddonManifest.cs](src/Portalkeeper/Models/AddonManifest.cs) for exact fields. Downloads are staged; replacement folders are backed up under `<client>/.portalkeeper/backups/`.
 
-Required addons gate **ENTER REALM** until installed/current. Recommended and personal addons do not. If a personal addon later becomes realm-managed, the realm entry wins and the redundant personal-management record is removed without deleting or reinstalling the addon.
+Required addons gate **ENTER REALM** until readiness checks pass. Recommended/personal addons do not. Source errors and known version/commit changes are displayed in addon management. Personal sources can be added or removed from management; realm policy wins if it adopts the same addon. Removing a personal management entry is not an instruction to erase its game data.
 
-## Building from source
+## News, calendar and Armory
 
-Requirements:
+News displays published articles with title, summary/body, category, author and local publication time, with pinned articles first. Calendar displays the published date range, month navigation and selected-day public events, including all-day and timed events; it is a viewer, not an event editor.
 
-- .NET 10 SDK
-- Git
+The server-side Armory module writes `index.json` plus `characters/<guid>.json`. An operator serves that directory over HTTP(S); Portalkeeper requests the roster and resolves profiles relative to `ArmoryURL`. The module neither hosts HTTP nor sends client models. Portalkeeper reads local MPQs to resolve the JSON's race, gender, customization and equipment display IDs.
 
-From the repository root:
+Tooltips retain the actual equipped item's name/quality, armor, stats, resistances, damage, speed/DPS, sockets with equipped gems, enchants, socket bonus, supplied spell names/triggers, flavor text, durability and supported requirements. Null enchant fields do not render; invalid enchant data is not converted into invented effects. Spell names and trigger labels are not a complete WoW spell-formula engine.
 
-```bash
-dotnet restore src/Portalkeeper/Portalkeeper.csproj
-dotnet build src/Portalkeeper/Portalkeeper.csproj
-```
+In Settings, **Show transmogrified appearances** sits below **Hide while WoW is running**, defaults on and persists per Armory URL. Unsupported feeds disable it with “This realm doesn’t support transmogrification.” Turning it off renders original gear while “Transmogrified to: …” remains in tooltips. Explicitly hidden appearances omit the visual item, not its equipment slot.
 
-Run during development with:
+See [current preview behavior](docs/armory-0.6-integration.md), [transmog details](docs/armory-transmog.md), [caching and troubleshooting](docs/operations.md) and [verification / Windows checklist](docs/verification.md). [Known implementation issues](docs/implementation-issues.md) are recorded separately.
 
-```bash
-dotnet run --project src/Portalkeeper/Portalkeeper.csproj
-```
+## Privacy and historical material
 
-## Creating the Linux 0.1.0 package
+Settings and caches live under the operating system's per-user application-data directory, in `Portalkeeper/`; client assets are not redistributed. Item icons can be fetched from the external `wow.zamimg.com` icon service. News/calendar/Armory are public-feed consumers, not authenticated account services.
 
-The repository includes a packaging script that creates a clean, self-contained `linux-x64` ZIP. A recipient does **not** need to install .NET.
-
-```bash
-./scripts/publish-linux.sh
-```
-
-The resulting archive is written to:
-
-```text
-dist/Portalkeeper-0.1.0-linux-x64.zip
-```
-
-The script starts from a clean release directory, copies only public documentation/configuration, removes development symbols, and fails if it detects any private `*.realm.conf` file in the package.
-
-## Linux / Wine
-
-Portalkeeper uses Wine to launch `Wow.exe`. It first honors an existing `WINEPREFIX`, then looks for a matching desktop launcher and its configured prefix, including the logged-in user's normal desktop-entry location. If no dedicated prefix can be identified, Wine's default prefix is used and Settings reports that fact.
-
-## Addon backups and local state
-
-Managed addon backups are stored under the WoW client directory:
-
-```text
-.portalkeeper/backups/
-```
-
-Portalkeeper's user settings, GitHub source cache, and personal-addon list are stored in the operating system's normal per-user application-data location. These are not part of a release package.
-
-## Privacy and distribution
-
-Do not commit private realm addresses, credentials, or private URLs to the public repository. Portalkeeper does not need a user's WoW account name or password and should never be used to distribute Blizzard client binaries.
-
-## License
+The [MPQ proof report](docs/armory-0.6-proof.md) is historical research, not current setup instructions. The actual checkout does not contain the standalone probe or earlier Armory test harnesses mentioned by historical reports; those references describe prior evidence, not runnable commands in this checkout. No developer tools were removed in this documentation review.
 
 See [LICENSE](LICENSE).
