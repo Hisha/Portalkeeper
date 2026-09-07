@@ -9,8 +9,28 @@ using System.Runtime.CompilerServices;
 
 namespace Portalkeeper.Models;
 
+public sealed class ArmoryCapabilities
+{
+    public bool Transmogrification { get; set; }
+}
+
+public sealed class ArmoryTransmogAppearance
+{
+    public bool Hidden { get; set; }
+    public bool Resolved { get; set; }
+    public int Entry { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Icon { get; set; } = string.Empty;
+    public int DisplayId { get; set; }
+    public int Quality { get; set; }
+    public int ItemClass { get; set; }
+    public int SubClass { get; set; }
+    public int InventoryType { get; set; }
+}
+
 public sealed class RealmArmoryIndex
 {
+    public ArmoryCapabilities? Capabilities { get; set; }
     public int SchemaVersion { get; set; }
     public DateTimeOffset GeneratedAt { get; set; }
     public List<ArmoryCharacterSummary> Characters { get; set; } = new();
@@ -39,6 +59,7 @@ public class ArmoryCharacterSummary
 
 public sealed class RealmArmoryProfile
 {
+    public ArmoryCapabilities? Capabilities { get; set; }
     public int SchemaVersion { get; set; }
     public DateTimeOffset GeneratedAt { get; set; }
     public ArmoryCharacter Character { get; set; } = new();
@@ -210,6 +231,11 @@ public sealed class ArmoryEquipmentItem
     public List<ArmoryItemSpell> Spells { get; set; } = new();
     public double? WeaponSpeed { get; set; }
     public double? WeaponDps { get; set; }
+    public ArmoryTransmogAppearance? Transmog { get; set; }
+    [JsonIgnore] public string TransmogText => Transmog is null ? string.Empty :
+        Transmog.Hidden ? "Transmogrified to: Hidden" :
+        !string.IsNullOrWhiteSpace(Transmog.Name) ? $"Transmogrified to: {Transmog.Name}" :
+        "Transmogrified appearance unavailable";
 
     [JsonIgnore] public string EnchantText => EnchantmentsValid == false ? string.Empty :
         string.Join(Environment.NewLine, new[] {

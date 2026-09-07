@@ -17,6 +17,8 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
     private readonly RealmArmoryService _service;
     private readonly ArmoryPreviewService _previews;
     private readonly string _clientFolder;
+    private readonly bool _transmogSupported;
+    private bool _showTransmog;
     private CancellationTokenSource? _previewCancellation;
     private long _selectionVersion;
     private bool _disposed;
@@ -40,9 +42,11 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
     private string _status;
     private bool _loadingProfile;
 
-    public ArmoryViewModel(RealmArmoryIndex feed, string indexUrl, string status, RealmArmoryService service, string? clientFolder = null, ArmoryPreviewService? previews = null)
+    public ArmoryViewModel(RealmArmoryIndex feed, string indexUrl, string status, RealmArmoryService service, string? clientFolder = null, ArmoryPreviewService? previews = null, bool showTransmog = true)
     {
         _service = service;
+        _transmogSupported = feed.Capabilities?.Transmogrification == true;
+        _showTransmog = showTransmog;
         _clientFolder = clientFolder ?? new SettingsService().Load().ClientPath;
         _previews = previews ?? new ArmoryPreviewService();
         _indexUrl = indexUrl;
@@ -55,6 +59,15 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
         BottomEquipmentSlots = new ObservableCollection<ArmoryEquipmentSlotView>();
 
         ApplyFilter();
+    }
+
+    public void SetTransmogPreference(bool show)
+    {
+        if (_disposed || _showTransmog == show) return;
+        _showTransmog = show;
+        var selection = SelectedSummary;
+        SelectedSummary = null;
+        SelectedSummary = selection;
     }
 
     public ObservableCollection<ArmoryCharacterSummary> Characters { get; }
@@ -231,7 +244,8 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
                     LoadingProfile = false;
                     LoadingPreview = true;
                     PreviewStatus = "Loading character preview…";
-                    var preview = await _previews.LoadAsync(SelectedCharacter, _indexUrl, _clientFolder, token);
+                    var preview = await _previews.LoadAsync(SelectedCharacter, _indexUrl, _clientFolder, token,
+                        _transmogSupported && result.Profile?.Capabilities?.Transmogrification == true, _showTransmog);
                     if (!_disposed && version == _selectionVersion && !token.IsCancellationRequested)
                     {
                         if (preview.ImagePath is not null)

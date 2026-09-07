@@ -15,7 +15,10 @@ internal sealed class ClientMesh
     public Vector2[] Uvs { get; }
     public List<Surface> Surfaces { get; } = new();
     public Dictionary<int,Matrix4x4> Attachments { get; } = new();
-    public sealed record Surface(int[] Indices,ClientTexture Texture,bool TwoSided,bool ClampU,bool ClampV);
+    public sealed record Surface(int[] Indices,ClientTexture Texture,bool TwoSided,bool ClampU,bool ClampV,int BlendMode,bool Unlit,bool DepthWrite)
+    {
+        public bool PassesAlphaTest(byte alpha) => BlendMode != 1 || alpha >= 128;
+    }
     private static (int N,int Offset) ArrayBlock(byte[] b,int at,int stride)
     {
         if(at<0||at+8>b.Length)throw new InvalidDataException("Model array header.");
@@ -62,6 +65,8 @@ internal sealed class ClientMesh
         var(ng,og)=ArrayBlock(skin,28,48);var(nb,ob)=ArrayBlock(skin,36,24);var(nx,ox)=ArrayBlock(b,80,16);
         var(nl,ol)=ArrayBlock(b,128,2);var(nf,of)=ArrayBlock(b,112,4);
         var loaded=new Dictionary<int,ClientTexture>();var used=new HashSet<int>();
+        // Preserve the original base surface even if a glow batch precedes it in the file.
+        foreach(bool glow in new[]{false,true})
         for(int i=0;i<nb;i++)
         {
             token.ThrowIfCancellationRequested();int off=ob+i*24;
@@ -70,7 +75,9 @@ internal sealed class ClientMesh
             uint gid=BitConverter.ToUInt32(skin,og+sub*48);
             if((visible is not null&&!visible(gid))||used.Contains(sub))continue;
             int flags=BitConverter.ToUInt16(b,of+rf*4),blend=BitConverter.ToUInt16(b,of+rf*4+2);
-            if(blend is not (0 or 1))continue; // Static surface milestone: omit additive/reflective passes.
+            // Keep independent static emissive geometry (such as helmet eyes).
+            // Environment-map and layered reflection shaders remain outside this rasterizer.
+            if(blend is not (0 or 1 or 4) || (blend==4)!=glow)continue;
             int textureId=BitConverter.ToUInt16(b,ol+lookup*2);if(textureId>=nx)throw new InvalidDataException("Texture lookup.");
             int texOff=ox+textureId*16;int type=(int)BitConverter.ToUInt32(b,texOff),texFlags=(int)BitConverter.ToUInt32(b,texOff+4);
             if(!loaded.TryGetValue(textureId,out var texture))
@@ -89,7 +96,7 @@ internal sealed class ClientMesh
             }
             int start=BitConverter.ToUInt16(skin,og+sub*48+8),count=BitConverter.ToUInt16(skin,og+sub*48+10);
             if(start+count>nt||count%3!=0)throw new InvalidDataException("Surface indices.");
-            Surfaces.Add(new(indices.Skip(start).Take(count).ToArray(),texture,(flags&4)!=0,(texFlags&1)==0,(texFlags&2)==0));used.Add(sub);
+            Surfaces.Add(new(indices.Skip(start).Take(count).ToArray(),texture,(flags&4)!=0,(texFlags&1)==0,(texFlags&2)==0,blend,(flags&1)!=0,(flags&16)==0));used.Add(sub);
         }
         if(Surfaces.Count==0)throw new InvalidDataException("No visible model surfaces.");
     }

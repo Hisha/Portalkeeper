@@ -1,0 +1,8 @@
+docs/armory-material-rendering-fix.md
+src/Portalkeeper/Services/ArmoryPreviewService.cs
+src/Portalkeeper/Services/CharacterRendering/CharacterRasterizer.cs
+src/Portalkeeper/Services/CharacterRendering/ClientLighting.cs
+src/Portalkeeper/Services/CharacterRendering/ClientMesh.cs
+tests/ArmoryMaterialChecks/ArmoryMaterialChecks.csproj
+tests/ArmoryMaterialChecks/Program.cs
+docs/armory-rendering-changed-files.txt

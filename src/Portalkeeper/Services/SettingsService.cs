@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -8,8 +9,14 @@ public sealed class SettingsService
 {
     private readonly string _settingsPath;
 
-    public SettingsService()
+    public SettingsService(string? settingsPath = null)
     {
+        if (settingsPath is not null)
+        {
+            _settingsPath = settingsPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(settingsPath))!);
+            return;
+        }
         var applicationData =
             Environment.GetFolderPath(
                 Environment.SpecialFolder.ApplicationData);
@@ -34,8 +41,9 @@ public sealed class SettingsService
 
             var json = File.ReadAllText(_settingsPath);
 
-            return JsonSerializer.Deserialize<PortalkeeperSettings>(json)
-                   ?? new PortalkeeperSettings();
+            var settings = JsonSerializer.Deserialize<PortalkeeperSettings>(json) ?? new PortalkeeperSettings();
+            settings.ShowTransmogrifiedAppearancesByRealm ??= new();
+            return settings;
         }
         catch
         {
@@ -58,6 +66,9 @@ public sealed class SettingsService
 
 public sealed class PortalkeeperSettings
 {
+    public Dictionary<string, bool> ShowTransmogrifiedAppearancesByRealm { get; set; } = new();
+    public bool ShowTransmogFor(string realmKey) =>
+        !ShowTransmogrifiedAppearancesByRealm.TryGetValue(realmKey, out var value) || value;
     public string ClientPath { get; set; } = string.Empty;
     public bool HidePortalkeeperWhileGameRuns { get; set; } = true;
 }

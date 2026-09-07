@@ -59,11 +59,35 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isLaunching;
     private bool _isGameRunning;
     private bool _hidePortalkeeperWhileGameRuns = true;
+    private PortalkeeperSettings _savedSettings = new();
+    private bool _transmogrificationSupported;
+    public bool TransmogrificationSupported => _transmogrificationSupported;
+    public string? TransmogAvailabilityHint => TransmogrificationSupported ? null :
+        "This realm doesn’t support transmogrification.";
+    public bool ShowTransmogrifiedAppearances
+    {
+        get => _savedSettings.ShowTransmogFor(ArmoryUrl);
+        set
+        {
+            if (!TransmogrificationSupported || string.IsNullOrWhiteSpace(ArmoryUrl) || value == ShowTransmogrifiedAppearances) return;
+            _savedSettings.ShowTransmogrifiedAppearancesByRealm[ArmoryUrl] = value;
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+    private void SetTransmogSupported(bool supported)
+    {
+        _transmogrificationSupported = supported;
+        OnPropertyChanged(nameof(TransmogrificationSupported));
+        OnPropertyChanged(nameof(TransmogAvailabilityHint));
+        OnPropertyChanged(nameof(ShowTransmogrifiedAppearances));
+    }
+
 
     private string _launchStatus =
         "Checking configuration...";
 
-    public MainViewModel()
+    public MainViewModel(SettingsService? settingsService = null)
     {
         _addonManifestService = new AddonManifestService();
         _gitHubAddonSourceService = new GitHubAddonSourceService();
@@ -71,7 +95,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _addonInstallerService = new AddonInstallerService();
         _personalAddonService = new PersonalAddonService();
         _clientService = new ClientService();
-        _settingsService = new SettingsService();
+        _settingsService = settingsService ?? new SettingsService();
         _realmConfigurationService = new RealmConfigurationService();
         _realmLaunchService = new RealmLaunchService();
         _realmHealthService = new RealmHealthService();
@@ -300,7 +324,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (!ArmoryAvailable || _realmInfo is null)
             return new RealmArmoryIndexLoadResult(null, false, "This realm does not provide an armory feed.");
-        return await _realmArmoryService.LoadIndexAsync(_realmInfo.ArmoryUrl);
+        var url = _realmInfo.ArmoryUrl;
+        var result = await _realmArmoryService.LoadIndexAsync(url);
+        if (url == ArmoryUrl) SetTransmogSupported(result.Feed?.Capabilities?.Transmogrification == true);
+        return result;
     }
 
     public RealmArmoryService ArmoryService => _realmArmoryService;
@@ -574,6 +601,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var settings =
             _settingsService.Load();
 
+        _savedSettings = settings;
         _hidePortalkeeperWhileGameRuns =
             settings.HidePortalkeeperWhileGameRuns;
 
@@ -590,12 +618,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void SaveSettings()
     {
-        _settingsService.Save(
-            new PortalkeeperSettings
-            {
-                ClientPath = ClientValid ? ClientPath : string.Empty,
-                HidePortalkeeperWhileGameRuns = HidePortalkeeperWhileGameRuns
-            });
+        _savedSettings.ClientPath = ClientValid ? ClientPath : string.Empty;
+        _savedSettings.HidePortalkeeperWhileGameRuns = HidePortalkeeperWhileGameRuns;
+        _settingsService.Save(_savedSettings);
     }
 
     private void ApplyClientInfo(ClientInfo client)
@@ -628,6 +653,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void LoadRealmConfiguration()
     {
+        SetTransmogSupported(false);
         var candidates =
             FindRealmConfigurationFiles();
 
@@ -671,6 +697,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
 
             _realmInfo = realm;
+            OnPropertyChanged(nameof(ShowTransmogrifiedAppearances));
+            _ = LoadArmoryAsync();
             _realmHealthState = RealmHealthState.Checking;
             _realmStatus =
                 "Realm configuration loaded; checking server status...";

@@ -22,12 +22,13 @@ public sealed class ArmoryPreviewService
     {
         _cache=cacheDirectory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"Portalkeeper","armory-cache","previews");
     }
-    public async Task<ArmoryPreviewResult> LoadAsync(ArmoryCharacter character,string realmUrl,string clientFolder,CancellationToken token)
+    public async Task<ArmoryPreviewResult> LoadAsync(ArmoryCharacter character,string realmUrl,string clientFolder,CancellationToken token, bool transmogSupported = false, bool showTransmog = true)
     {
         if(string.IsNullOrWhiteSpace(clientFolder))return new(null,"Choose your WoW client folder in Settings to show a character preview.");
         // Serialize only visual inputs: no timestamps/durability, so a periodic feed publish does not invalidate an identical preview.
         var visual=new {character.Race,character.Gender,character.Class,character.Appearance,
-            Equipment=character.Equipment.OrderBy(e=>e.Slot).Select(e=>new {e.Slot,e.Entry,e.DisplayId,e.InventoryType,e.ItemClass})};
+            transmogSupported, showTransmog,
+            Equipment=character.Equipment.OrderBy(e=>e.Slot).Select(e=>new {e.Slot,e.Entry,e.DisplayId,e.InventoryType,e.ItemClass,e.Transmog})};
         string visualJson=JsonSerializer.Serialize(visual);
         return await Task.Run(async ()=>
         {
@@ -36,7 +37,7 @@ public sealed class ArmoryPreviewService
             {
                 token.ThrowIfCancellationRequested();
                 var fingerprint=ClientAssets.Fingerprint(clientFolder);
-                var key=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("armory-render-v1|"+realmUrl+"|"+fingerprint+"|"+visualJson)));
+                var key=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("armory-render-v3|"+realmUrl+"|"+fingerprint+"|"+visualJson)));
                 Directory.CreateDirectory(_cache);var target=Path.Combine(_cache,key+".png");
                 bool ValidCache()
                 {
@@ -47,7 +48,7 @@ public sealed class ArmoryPreviewService
                 try
                 {
                     if(File.Exists(target)&&ValidCache())return new ArmoryPreviewResult(target,"",true);
-                    var bytes=CharacterRasterizer.Render(clientFolder,character,token);
+                    var bytes=CharacterRasterizer.Render(clientFolder,ArmoryVisualEquipment.Select(character, transmogSupported && showTransmog),token);
                     // Do not cache a result against archive metadata that changed while reading.
                     if(ClientAssets.Fingerprint(clientFolder)!=fingerprint)throw new IOException("The client files changed while creating this preview.");
                     token.ThrowIfCancellationRequested();temp=target+"."+Guid.NewGuid().ToString("N")+".tmp";

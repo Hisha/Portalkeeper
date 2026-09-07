@@ -47,6 +47,9 @@
                                FontWeight="Bold"
                                Foreground="{Binding ItemNameBrush}"
                                TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.TransmogText}" Foreground="#C58AF9"
+                               IsVisible="{Binding Item.TransmogText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"
+                               TextWrapping="Wrap" />
                     <TextBlock Text="{Binding Item.ItemLevel, StringFormat='Item Level {0}'}"
                                FontSize="11"
                                Foreground="#FFD76A"/>

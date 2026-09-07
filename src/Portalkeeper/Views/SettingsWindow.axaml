@@ -237,6 +237,14 @@
                                            TextWrapping="Wrap" />
                             </Grid>
                         </Border>
+                        <Border Background="#0E1B27" BorderBrush="#3B4B58" BorderThickness="1"
+                                CornerRadius="3" Padding="12,10"
+                                x:Name="TransmogSettingRow" ToolTip.Tip="{Binding TransmogAvailabilityHint}">
+                            <CheckBox x:Name="ShowTransmogCheckBox" Content="Show transmogrified appearances"
+                                      IsChecked="{Binding ShowTransmogrifiedAppearances, Mode=TwoWay}"
+                                      IsEnabled="{Binding TransmogrificationSupported}"
+                                      Foreground="#F2E7D0" />
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>

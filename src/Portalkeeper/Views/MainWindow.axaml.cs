@@ -112,9 +112,17 @@ public partial class MainWindow : Window
 
         var window = new ArmoryWindow
         {
-            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService, viewModel.ClientPath)
+            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService, viewModel.ClientPath, showTransmog: viewModel.ShowTransmogrifiedAppearances)
         };
-        await window.ShowDialog(this);
+        var realmUrl = viewModel.ArmoryUrl;
+        System.ComponentModel.PropertyChangedEventHandler preferenceChanged = (_, args) =>
+        {
+            if (args.PropertyName == nameof(MainViewModel.ShowTransmogrifiedAppearances) && viewModel.ArmoryUrl == realmUrl)
+                ((ArmoryViewModel)window.DataContext!).SetTransmogPreference(viewModel.ShowTransmogrifiedAppearances);
+        };
+        viewModel.PropertyChanged += preferenceChanged;
+        try { await window.ShowDialog(this); }
+        finally { viewModel.PropertyChanged -= preferenceChanged; }
     }
 
     private async void News_Click(object? sender, RoutedEventArgs e)
@@ -176,6 +184,7 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel)
             return;
 
+        _ = viewModel.LoadArmoryAsync();
         var window = new SettingsWindow
         {
             DataContext = viewModel

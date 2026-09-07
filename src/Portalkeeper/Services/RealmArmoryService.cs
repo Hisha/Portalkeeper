@@ -1,4 +1,6 @@
 using System;
+using System.Security.Cryptography;
+using System.Text;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -22,9 +24,17 @@ public sealed class RealmArmoryService
         Directory.CreateDirectory(_cacheDirectory);
     }
 
+    private string RealmCachePath(string url, string file)
+    {
+        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)));
+        var directory = Path.Combine(_cacheDirectory, "realms", key);
+        Directory.CreateDirectory(directory);
+        return Path.Combine(directory, file);
+    }
+
     public async Task<RealmArmoryIndexLoadResult> LoadIndexAsync(string url)
     {
-        var cache = Path.Combine(_cacheDirectory, "index.json");
+        var cache = RealmCachePath(url, "index.json");
         try
         {
             var json = await Http.GetStringAsync(url);
@@ -47,7 +57,7 @@ public sealed class RealmArmoryService
 
     public async Task<RealmArmoryProfileLoadResult> LoadProfileAsync(string indexUrl, ulong characterId)
     {
-        var cache = Path.Combine(_cacheDirectory, $"character-{characterId}.json");
+        var cache = RealmCachePath(indexUrl, $"character-{characterId}.json");
         try
         {
             var baseUri = new Uri(indexUrl);
