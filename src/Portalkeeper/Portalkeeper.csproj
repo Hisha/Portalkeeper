@@ -39,4 +39,13 @@
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Keep RID-less builds portable; flatten the native asset for Windows x64 publish. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64'">
+    <None Update="runtimes/win-x64/native/StormLib.dll;runtimes/win-x64/native/StormLib.LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest">
+      <TargetPath Condition="'$(RuntimeIdentifier)' == 'win-x64'">%(Filename)%(Extension)</TargetPath>
+    </None>
+  </ItemGroup>
+
 </Project>

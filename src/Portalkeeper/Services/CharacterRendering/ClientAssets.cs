@@ -91,13 +91,30 @@ internal static class Storm
         NativeLibrary.SetDllImportResolver(typeof(Storm).Assembly, (name, assembly, search) =>
         {
             if (name != Library) return IntPtr.Zero;
-            foreach (var candidate in OperatingSystem.IsWindows() ? new[] {"StormLib.dll"} :
-                OperatingSystem.IsMacOS() ? new[] {"libstorm.dylib"} : new[] {"libstorm.so", "libstorm.so.9"})
+            if (OperatingSystem.IsWindows())
+            {
+                if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+                    throw new PlatformNotSupportedException("StormLib previews require Windows x64.");
+                string nativePath = Path.Combine(AppContext.BaseDirectory, "StormLib.dll");
+                if (!File.Exists(nativePath))
+                    nativePath = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", "StormLib.dll");
+                return NativeLibrary.Load(nativePath);
+            }
+            foreach (var candidate in OperatingSystem.IsMacOS() ? new[] {"libstorm.dylib"} : new[] {"libstorm.so", "libstorm.so.9"})
                 if (NativeLibrary.TryLoad(candidate, assembly, search, out var h)) return h;
             throw new DllNotFoundException("StormLib is unavailable. Install the native StormLib library to enable client previews.");
         });
     }
-    [DllImport(Library, EntryPoint="SFileOpenArchive")] [return: MarshalAs(UnmanagedType.I1)] internal static extern bool OpenArchive([MarshalAs(UnmanagedType.LPUTF8Str)] string path,uint priority,uint flags,out IntPtr handle);
+    internal static bool OpenArchive(string path, uint priority, uint flags, out IntPtr handle) =>
+        OperatingSystem.IsWindows()
+            ? OpenArchiveWindows(path, priority, flags, out handle)
+            : OpenArchiveUnix(path, priority, flags, out handle);
+
+    // The bundled official Windows DLL uses UTF-16 TCHAR paths; Unix uses UTF-8.
+    [DllImport(Library, EntryPoint="SFileOpenArchive", ExactSpelling=true)] [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool OpenArchiveWindows([MarshalAs(UnmanagedType.LPWStr)] string path, uint priority, uint flags, out IntPtr handle);
+    [DllImport(Library, EntryPoint="SFileOpenArchive", ExactSpelling=true)] [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool OpenArchiveUnix([MarshalAs(UnmanagedType.LPUTF8Str)] string path, uint priority, uint flags, out IntPtr handle);
     [DllImport(Library, EntryPoint="SFileHasFile")] [return: MarshalAs(UnmanagedType.I1)] internal static extern bool HasFile(IntPtr archive,[MarshalAs(UnmanagedType.LPUTF8Str)] string path);
     [DllImport(Library, EntryPoint="SFileOpenFileEx")] [return: MarshalAs(UnmanagedType.I1)] internal static extern bool OpenFile(IntPtr archive,[MarshalAs(UnmanagedType.LPUTF8Str)] string path,uint scope,out IntPtr file);
     [DllImport(Library, EntryPoint="SFileGetFileSize")] internal static extern uint GetSize(IntPtr file,out uint high);
