@@ -2,7 +2,7 @@
 
 Portalkeeper is an independent realm launcher, addon manager and public realm-information viewer for **World of Warcraft 3.3.5a, build 12340**. It remains **under development**. It is not affiliated with AzerothCore or Blizzard Entertainment.
 
-Linux functionality has been exercised in this session, including focused Armory checks; this is not exhaustive validation of every launcher, addon, client or realm configuration. **Windows runtime and packaging verification are pending.** Character previews are static; animation and particle effects are outside the current scope.
+Linux functionality has been exercised, including focused Armory checks. Windows portable and installed releases have also been validated on Windows, including client launch, native StormLib loading, Armory character previews, Start Menu integration and uninstall. This is not exhaustive validation of every launcher, addon, client or realm configuration. Character previews are static; animation and particle effects are outside the current scope.
 
 ## Current functionality
 
@@ -30,7 +30,47 @@ The root [Portalkeeper.slnx](Portalkeeper.slnx) and [application project](src/Po
 ./scripts/publish-linux.sh
 ```
 
-It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.1.0-linux-x64.zip`. This review does not change release versions. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols; Windows packaging is not verified.
+It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.1.0-linux-x64.zip`. This review does not change release versions. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols.
+
+## Windows releases
+
+Two Windows release artifacts are offered, both built from the same project version (currently `0.1.0`). Both bundle the .NET runtime and `StormLib.dll`; no PowerShell launch or install script is required.
+
+### Portable
+
+```
+Download  Portalkeeper-<version>-win-x64.zip
+Extract   the ZIP into a folder
+Run       Portalkeeper.exe
+```
+
+### Installed
+
+```
+Download  Portalkeeper-Setup-<version>.exe
+Run       the installer (per-user, no administrator rights required)
+Launch    Portalkeeper from the Start Menu
+```
+
+The installer adds a Start Menu shortcut, registers Portalkeeper in Windows *Installed apps*, offers an optional desktop shortcut, and provides a normal uninstall entry. Upgrading is a clean reinstall over the same folder. The installer adds a Start Menu shortcut, registers Portalkeeper in Windows *Installed apps*, offers an optional desktop shortcut, and provides a normal uninstall entry. Upgrading is a clean reinstall over the same folder. User settings and caches in `%APPDATA%\Portalkeeper\` are left untouched by install and uninstall. User-created realm configuration files are also preserved during uninstall. Blizzard/WoW client assets are never distributed. Blizzard/WoW client assets are never distributed.
+
+### Maintainers: creating the release artifacts
+
+Both commands run the `win-x64` self-contained publish and validate that
+`StormLib.dll` and `StormLib.LICENSE.txt` are present. They refuse to package
+private `*.realm.conf` files and strip development-only files out of the ZIP.
+Run them from the repository root:
+
+```
+pwsh scripts/publish-win.ps1 -Installer
+```
+
+This produces:
+
+- `dist/Portalkeeper-<version>-win-x64.zip`
+- `dist/Portalkeeper-Setup-<version>.exe`
+
+The portable ZIP alone is `pwsh scripts/publish-win.ps1` (or `scripts/build-win-installer.ps1` for both). Compiling the installer requires [Inno Setup 6](https://jrsoftware.org/isdl.php) (6.2 or newer); `publish-win.ps1` reports a clear error if `ISCC.exe` is not found and still creates the portable ZIP in that case. No Visual Studio is needed.
 
 ## Client and realm setup
 
