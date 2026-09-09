@@ -11,6 +11,7 @@ public sealed class RealmInfo
     public string StatusUrl { get; init; } = string.Empty;
     public string CalendarUrl { get; init; } = string.Empty;
     public string ArmoryUrl { get; init; } = string.Empty;
+    public string UpdateUrl { get; init; } = string.Empty;
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Name) &&

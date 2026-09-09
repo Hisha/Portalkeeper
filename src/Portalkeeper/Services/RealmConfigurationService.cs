@@ -78,7 +78,10 @@ public sealed class RealmConfigurationService
                 Get(values, "Updates.CalendarURL"),
 
             ArmoryUrl =
-                Get(values, "Updates.ArmoryURL")
+                Get(values, "Updates.ArmoryURL"),
+                
+            UpdateUrl =
+                Get(values, "Updates.UpdateURL")
         };
     }
 
