@@ -254,8 +254,14 @@
                     </Grid>
                 </Border>
 
+                <Border IsVisible="{Binding IsUpdateAvailable}" Background="#0E1823" BorderBrush="#6E5426" BorderThickness="1" Padding="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Text="{Binding AvailableReleaseText}" Foreground="#F6D477" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="VIEW RELEASE" Click="ViewRelease_Click" />
+                    </Grid>
+                </Border>
                 <TextBlock Text="{Binding ConfigurationStatus}" TextWrapping="Wrap" Foreground="#AFA28D" />
-                <Button Content="MANAGE PATCHES" Click="ManagePatches_Click" IsEnabled="{Binding ClientValid}" Padding="20,10" />
+                <Button Content="MANAGE PATCHES" IsVisible="{Binding HasManagedPatches}" Click="ManagePatches_Click" IsEnabled="{Binding ClientValid}" Padding="20,10" />
                 <!-- Utility strip -->
                 <Border Background="#0A141E"
                         BorderBrush="#40331E"

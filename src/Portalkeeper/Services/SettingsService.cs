@@ -69,6 +69,9 @@ public sealed class PortalkeeperSettings
     public Dictionary<string, bool> ShowTransmogrifiedAppearancesByRealm { get; set; } = new();
     public bool ShowTransmogFor(string realmKey) =>
         !ShowTransmogrifiedAppearancesByRealm.TryGetValue(realmKey, out var value) || value;
+    public string? SelectedRealmPath { get; set; }
+    public DateTimeOffset? LastPortalkeeperUpdateCheckUtc { get; set; }
+    public string? LatestPortalkeeperReleaseTag { get; set; }
     public string ClientPath { get; set; } = string.Empty;
     public bool HidePortalkeeperWhileGameRuns { get; set; } = true;
 }

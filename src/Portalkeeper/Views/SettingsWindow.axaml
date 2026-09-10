@@ -164,6 +164,9 @@
                                        FontSize="12"
                                        Foreground="#AFA28D"
                                        TextWrapping="Wrap" />
+                            <Button Content="CHANGE REALM" Click="ChangeRealm_Click"
+                                    IsVisible="{Binding CanChangeRealm}" IsEnabled="{Binding CanSwitchRealm}"
+                                    HorizontalAlignment="Left" Margin="0,8,0,0" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -199,6 +202,17 @@
                                        TextWrapping="Wrap" />
                         </StackPanel>
                     </Grid>
+                </Border>
+
+                <Border Background="#0E1823" BorderBrush="#6E5426" BorderThickness="1" CornerRadius="4" Padding="16">
+                    <StackPanel Spacing="9">
+                        <TextBlock Text="{Binding ApplicationVersion}" Foreground="#D5AA50" FontWeight="Bold" />
+                        <TextBlock Text="{Binding UpdateStatus}" Foreground="#D8CCBA" TextWrapping="Wrap" />
+                        <WrapPanel>
+                            <Button Content="CHECK FOR UPDATES" Click="CheckForUpdates_Click" IsEnabled="{Binding CanCheckForUpdates}" Margin="0,0,10,8" />
+                            <Button Content="VIEW RELEASE" Click="ViewRelease_Click" IsVisible="{Binding IsUpdateAvailable}" Margin="0,0,0,8" />
+                        </WrapPanel>
+                    </StackPanel>
                 </Border>
 
                 <!-- Behavior -->

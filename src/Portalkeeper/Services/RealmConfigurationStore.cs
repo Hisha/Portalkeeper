@@ -42,6 +42,30 @@ public sealed class RealmConfigurationStore
         finally { if (File.Exists(temp)) File.Delete(temp); }
         return new[] { target };
     }
+    // Selection includes usable persistent legacy realms as well as Schema v1.
+    // Persistent data retains precedence over adjacent bootstrap files.
+    public IReadOnlyList<RealmChoice> GetAvailableRealms(params string[] roots)
+    {
+        var persistent = Directory.Exists(_directory) ? Files(_directory).ToArray() : Array.Empty<string>();
+        var candidates = persistent.Length > 0 ? persistent : Discover(roots);
+        var choices = new List<RealmChoice>();
+        var parser = new RealmConfigurationService();
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var text = File.ReadAllText(path);
+                var realm = RealmConfigurationService.IsLegacy(RealmConfigurationService.ReadIni(text))
+                    ? parser.ParseLegacy(text) : parser.Parse(text);
+                if (realm.IsConfigured && !choices.Any(c => RealmChoice.SamePath(c.Path, path)))
+                    choices.Add(new RealmChoice(Path.GetFullPath(path), realm));
+            }
+            catch (Exception) { /* Invalid/minimum-version-incompatible files are not selectable. */ }
+        }
+        return choices.OrderBy(c => c.IsLegacy).ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.Path, StringComparer.Ordinal).ToArray();
+    }
+
     private static bool IsValidSchemaFile(string path)
     {
         try { return new RealmConfigurationService().Load(path).SchemaVersion == 1; }
@@ -63,7 +87,7 @@ public sealed class RealmConfigurationStore
     private static string LegacyStatus(string detail) =>
         "Legacy compatibility mode: " + detail + " Original configuration preserved. You can still Enter Realm with a valid WoW client.";
 
-    public async Task<(RealmInfo? Realm, string Status)> LoadAsync(string path, bool refresh = true)
+    public async Task<(RealmInfo? Realm, string Status)> LoadAsync(string path, bool refresh = true, Action<string>? migrated = null)
     {
         var parser = new RealmConfigurationService();
         RealmInfo? realm = null;
@@ -86,7 +110,11 @@ public sealed class RealmConfigurationStore
                     // appears between choosing the destination and committing it.
                     migration = await _updates.ApplyUpdateAsync(target, migration.RemoteBytes!, overwrite: false);
                     if (migration.Status == UpdateCheckStatus.UpdateApplied)
-                        return (parser.Load(target), "Legacy realm migrated to persistent Schema v1 configuration. Original legacy file preserved.");
+                    {
+                        var migratedRealm = parser.Load(target);
+                        migrated?.Invoke(Path.GetFullPath(target));
+                        return (migratedRealm, "Legacy realm migrated to persistent Schema v1 configuration. Original legacy file preserved.");
+                    }
                 }
                 return (realm, LegacyStatus("Automatic Schema v1 upgrade failed. " + migration.Message));
             }

@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Portalkeeper.ViewModels"
+        xmlns:models="using:Portalkeeper.Models"
+        x:Class="Portalkeeper.Views.RealmSelectionWindow" x:DataType="vm:MainViewModel"
+        Width="640" Height="500" MinWidth="520" MinHeight="380"
+        Title="Change Realm" WindowStartupLocation="CenterOwner" Background="#091019">
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#111A24" />
+            <Setter Property="Foreground" Value="#F6D477" />
+            <Setter Property="BorderBrush" Value="#9A6B1E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1B2A38" />
+            <Setter Property="BorderBrush" Value="#D2A43A" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="#263441" />
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Padding="20,16" BorderBrush="#A06E1B" BorderThickness="0,0,0,2" Background="#0A1119">
+            <StackPanel Spacing="5">
+                <TextBlock Text="CHANGE REALM" Foreground="#FFD96B" FontSize="23" FontWeight="Bold" />
+                <TextBlock Text="Current realm" Foreground="#AFA28D" FontSize="11" />
+                <TextBlock Text="{Binding RealmName}" Foreground="#F8F0DF" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        <ListBox Grid.Row="1" x:Name="RealmList" Margin="18" Background="#0E1823"
+                 BorderBrush="#6E5426" BorderThickness="1" ItemsSource="{Binding AvailableRealms}"
+                 SelectionChanged="RealmList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:RealmChoice">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="{Binding Name}" Foreground="#F8F0DF" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Description}" Foreground="#AFA28D" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Address}" Foreground="#D8CCBA" TextWrapping="Wrap" />
+                        <TextBlock Text="Legacy compatibility realm" IsVisible="{Binding IsLegacy}" Foreground="#D5AA50" FontSize="11" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="2" Padding="18,12" Background="#081019" BorderBrush="#5B431B" BorderThickness="0,1,0,0">
+            <StackPanel Spacing="10">
+                <TextBlock x:Name="StatusText" Text="Choose a realm. Your WoW client selection stays the same."
+                           Foreground="#AFA28D" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                    <Button Content="CANCEL" Click="Cancel_Click" />
+                    <Button x:Name="UseRealmButton" Content="USE REALM" IsEnabled="False" Click="UseRealm_Click" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

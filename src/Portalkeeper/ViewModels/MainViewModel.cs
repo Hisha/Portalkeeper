@@ -11,7 +11,7 @@ using Portalkeeper.Services;
 
 namespace Portalkeeper.ViewModels;
 
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly GitHubAddonSourceService _gitHubAddonSourceService;
     private readonly AddonService _addonService;
@@ -34,9 +34,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (_isManagingComponents || _isRefreshingConfiguration || IsLaunching || IsGameRunning)
             throw new InvalidOperationException("Wait for the current operation and close World of Warcraft before modifying components.");
         _isManagingComponents = true;
-        OnPropertyChanged(nameof(CanEnterRealm));
+        OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         try { await operation(); }
-        finally { _isManagingComponents = false; OnPropertyChanged(nameof(CanEnterRealm)); UpdateLaunchReadinessStatus(); }
+        finally { _isManagingComponents = false; OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm)); UpdateLaunchReadinessStatus(); }
     }
     private RealmInfo? _realmInfo;
     private readonly RealmConfigurationStore _realmStore = new();
@@ -54,8 +54,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ClientPath, p)).ToArray() ?? Array.Empty<PatchInfo>();
         OnPropertyChanged(nameof(Patches));
+        OnPropertyChanged(nameof(HasManagedPatches));
         OnPropertyChanged(nameof(PatchesReady));
-        OnPropertyChanged(nameof(CanEnterRealm));
+        OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         UpdateLaunchReadinessStatus();
     }
     public Task ManagePatchAsync(string id, bool remove) => RunComponentOperationAsync(() => ManagePatchCoreAsync(id, remove));
@@ -142,6 +143,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         LoadSavedClient();
         _ = RediscoverRealmConfigurationAsync();
         _ = RunRealmHealthLoopAsync();
+        _ = CheckForUpdatesAsync(manual: false);
     }
 
     public IReadOnlyList<AddonInfo> Addons =>
@@ -164,7 +166,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _isCheckingAddons = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(AddonStatusSymbol));
-            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         }
     }
 
@@ -420,7 +422,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(ClientStatusSymbol));
             OnPropertyChanged(nameof(ClientButtonText));
-            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         }
     }
 
@@ -469,7 +471,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             _isLaunching = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
             OnPropertyChanged(nameof(EnterRealmButtonText));
         }
     }
@@ -497,7 +499,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             _isGameRunning = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
             OnPropertyChanged(nameof(EnterRealmButtonText));
         }
     }
@@ -574,17 +576,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (_realmInfo is null || !_realmInfo.IsConfigured)
             return;
 
-        if (!await _realmHealthLock.WaitAsync(0))
-            return;
+        await _realmHealthLock.WaitAsync();
 
         try
         {
+            var checkedRealm = _realmInfo;
+            if (checkedRealm is null || !checkedRealm.IsConfigured) return;
             _realmHealthState = RealmHealthState.Checking;
             _realmStatus = "Checking realm server status...";
             NotifyRealmChanged();
 
             var health =
-                await _realmHealthService.CheckAsync(_realmInfo);
+                await _realmHealthService.CheckAsync(checkedRealm);
+            if (!ReferenceEquals(checkedRealm, _realmInfo)) return;
 
             _realmHealthState = health.State;
             _realmStatus = health.State switch
@@ -685,43 +689,69 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // Realm discovery
     // ---------------------------------------------------------
 
-    public async Task RediscoverRealmConfigurationAsync()
+    public async Task RediscoverRealmConfigurationAsync(string? selectedPath = null)
     {
         if (_isManagingComponents || _isRefreshingConfiguration || IsGameRunning || IsLaunching) return;
         _isRefreshingConfiguration = true;
-        OnPropertyChanged(nameof(CanEnterRealm));
+        OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         try
         {
-            await LoadRealmConfigurationAsync();
+            await LoadRealmConfigurationAsync(selectedPath);
             await Task.WhenAll(RefreshRealmHealthAsync(), LoadAddonsAsync());
         }
         finally
         {
             _isRefreshingConfiguration = false;
-            OnPropertyChanged(nameof(CanEnterRealm));
+            OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
             UpdateLaunchReadinessStatus();
         }
     }
 
-    private async Task LoadRealmConfigurationAsync()
+    private async Task LoadRealmConfigurationAsync(string? selectedPath = null)
     {
         await _configLock.WaitAsync();
         try
         {
             SetTransmogSupported(false);
-            var candidates = _realmStore.Discover(Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
-            if (candidates.Count != 1)
+            RefreshRealmChoices();
+            var selected = selectedPath is null
+                ? RealmChoice.Select(AvailableRealms, _savedSettings.SelectedRealmPath)
+                : AvailableRealms.FirstOrDefault(c => RealmChoice.SamePath(c.Path, selectedPath));
+            _activeRealmPath = null;
+            _realmInfo = null;
+            _addonManifest = null;
+            _addons = Array.Empty<AddonInfo>();
+            _addonsLoaded = false;
+            NotifyAddonsChanged();
+            if (selected is null)
             {
-                _realmInfo = null;
-                _configurationStatus = candidates.Count == 0
-                    ? "Place a *.realm.conf in " + RealmConfigurationStore.DefaultDirectory + ", then click CHECK AGAIN."
-                    : $"Multiple realm configurations found ({candidates.Count}). Keep the selected realm in {RealmConfigurationStore.DefaultDirectory}.";
+                if (selectedPath is not null)
+                    _configurationStatus = "The selected realm is no longer available. Choose a realm again in Settings.";
+                else if (AvailableRealms.Count > 1)
+                    _configurationStatus = "Choose your realm in Settings using CHANGE REALM.";
+                else
+                {
+                    // Keep the existing actionable validation/MinimumVersion error for one unusable file.
+                    var candidates = _realmStore.Discover(Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
+                    _configurationStatus = candidates.Count == 1
+                        ? (await _realmStore.LoadAsync(candidates[0])).Status
+                        : "Place a usable *.realm.conf in " + RealmConfigurationStore.DefaultDirectory + ", then click CHECK AGAIN.";
+                }
             }
             else
             {
-                var result = await _realmStore.LoadAsync(candidates[0]);
+                var loadedPath = selected.Path;
+                var result = await _realmStore.LoadAsync(selected.Path, migrated: path => loadedPath = path);
                 _realmInfo = result.Realm;
                 _configurationStatus = result.Status;
+                if (_realmInfo?.IsConfigured == true)
+                {
+                    _activeRealmPath = loadedPath;
+                    _savedSettings.SelectedRealmPath = loadedPath;
+                    try { SaveSettings(); }
+                    catch (Exception) { _configurationStatus += " The active realm could not be saved for next startup."; }
+                }
+                RefreshRealmChoices();
             }
             _realmStatus = _configurationStatus;
             _realmHealthState = RealmHealthState.Unknown;
@@ -748,6 +778,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void NotifyRealmChanged()
     {
         OnPropertyChanged(nameof(ConfigurationStatus));
+        OnPropertyChanged(nameof(SelectedRealmPath));
+        OnPropertyChanged(nameof(ArmoryUrl));
         OnPropertyChanged(nameof(RealmDescription));
         OnPropertyChanged(nameof(RealmWebsite));
         OnPropertyChanged(nameof(RealmConnection));
@@ -759,7 +791,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CalendarAvailable));
         OnPropertyChanged(nameof(NewsAvailable));
         OnPropertyChanged(nameof(ArmoryAvailable));
-        OnPropertyChanged(nameof(CanEnterRealm));
+        OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         UpdateLaunchReadinessStatus();
     }
 
@@ -966,7 +998,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(AddonsReady));
         OnPropertyChanged(nameof(AddonStatusSymbol));
         OnPropertyChanged(nameof(Addons));
-        OnPropertyChanged(nameof(CanEnterRealm));
+        OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
     }
 
     private void UpdateLaunchReadinessStatus()

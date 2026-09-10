@@ -30,11 +30,11 @@ The root [Portalkeeper.slnx](Portalkeeper.slnx) and [application project](src/Po
 ./scripts/publish-linux.sh
 ```
 
-It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.2.0-linux-x64.zip`. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols.
+It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.2.1-linux-x64.zip`. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols.
 
 ## Windows releases
 
-Two Windows release artifacts are offered, both built from the same project version (currently `0.2.0`). Both bundle the .NET runtime and `StormLib.dll`; no PowerShell launch or install script is required.
+Two Windows release artifacts are offered, both built from the same project version (currently `0.2.1`). Both bundle the .NET runtime and `StormLib.dll`; no PowerShell launch or install script is required.
 
 ### Portable
 
@@ -76,9 +76,13 @@ The portable ZIP alone is `pwsh scripts/publish-win.ps1` (or `scripts/build-win-
 
 Select the local folder containing `Wow.exe` and `Data` in Settings, for example `/path/to/WoW-335a` or `C:\Games\WoW-335a`. Executable validation checks supported metadata/build markers; it does not validate every archive. Linux launching requires `wine` or `wine64` on PATH. The launcher honors `WINEPREFIX`, otherwise tries matching desktop-launcher prefix information and then Wine's default prefix. Settings shows the detected launch environment.
 
-Portalkeeper 0.2.0 consumes **SchemaVersion=1**, generated and published by the server's **mod-realm-config** module. Portalkeeper has no database connection. Obtain the realm's public file from its administrator; [config/example.realm.conf](config/example.realm.conf) shows the complete contract.
+Portalkeeper 0.2.1 consumes **SchemaVersion=1**, generated and published by the server's **mod-realm-config** module. Portalkeeper has no database connection. Obtain the realm's public file from its administrator; [config/example.realm.conf](config/example.realm.conf) shows the complete contract.
 
-Place one non-example `*.realm.conf` in the persistent `Portalkeeper/realms` directory (Windows `%APPDATA%\Portalkeeper\realms`; Linux `$XDG_CONFIG_HOME/Portalkeeper/realms`, normally `~/.config/Portalkeeper/realms`). On first use, the launcher also discovers files beside the executable or in its `config/` folder and the working directory. It copies a single file to persistent storage and retains the original. Multiple candidates require the user to select one by keeping just the desired file in the persistent directory.
+Place your non-example `*.realm.conf` files in the persistent `Portalkeeper/realms` directory (Windows `%APPDATA%\Portalkeeper\realms`; Linux `$XDG_CONFIG_HOME/Portalkeeper/realms`, normally `~/.config/Portalkeeper/realms`). On first use, the launcher also discovers files beside the executable or in its `config/` folder and the working directory. It copies a single file to persistent storage and retains the original. When two or more usable files exist, Settings → Realm → CHANGE REALM opens a selector showing each realm’s name, description, address, and legacy status. The selected configuration path is saved with settings; switching retains the WoW client and only refreshes realm/client/component state. If the saved file disappears, a sole remaining realm is selected automatically; multiple remaining realms prompt you to choose in Settings. Persistent configurations take precedence over adjacent bootstrap files. With no saved selection, a sole valid Schema v1 realm also retains precedence over legacy files; those legacy realms remain selectable. Successful legacy migration follows the new persistent Schema v1 path. The bundled example and unusable configurations are not selectable.
+
+MANAGE PATCHES is shown only when the active realm defines managed patches. Switching realms updates its visibility without installing or removing patches.
+
+Portalkeeper checks the official Hisha/Portalkeeper latest stable GitHub release at startup at most approximately once per 24 hours. Attempts, including failures, are saved in settings; automatic failures stay quiet. Settings → CHECK FOR UPDATES bypasses the interval. A newer release appears as a non-blocking notice with VIEW RELEASE, which opens its official GitHub release page. Portalkeeper does not download or install updates. This advisory check is separate from a realm’s `MinimumVersion` requirement.
 
 `[Realm]` supplies name, description and website; `[Connection] Address` supplies `set realmlist <Address>`. `[Client]` supplies version, build, executable name and optional SHA-256, preserving existing executable metadata/build-marker validation. `[Portalkeeper] MinimumVersion` uses semantic version comparison and gives an upgrade message if incompatible.
 

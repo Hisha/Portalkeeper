@@ -182,6 +182,10 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel vm)
             await new ManagePatchesWindow { DataContext = vm }.ShowDialog(this);
     }
+    private void ViewRelease_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.ViewRelease();
+    }
     private async void Settings_Click(
         object? sender,
         RoutedEventArgs e)
@@ -190,6 +194,7 @@ public partial class MainWindow : Window
             return;
 
         _ = viewModel.LoadArmoryAsync();
+        viewModel.RefreshRealmChoices();
         var window = new SettingsWindow
         {
             DataContext = viewModel
