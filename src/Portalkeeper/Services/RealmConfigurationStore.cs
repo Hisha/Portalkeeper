@@ -15,15 +15,23 @@ public sealed class RealmConfigurationStore
     { _directory = directory ?? DefaultDirectory; _updates = updates ?? new(); }
     public IReadOnlyList<string> Discover(params string[] roots)
     {
-        Directory.CreateDirectory(_directory);
-        var existing = Files(_directory).ToArray();
+        var existing = Directory.Exists(_directory) ? Files(_directory).ToArray() : Array.Empty<string>();
+        // A successful migration wins even if an earlier release copied a legacy
+        // file into the store. Multiple valid v1 realms still require selection.
+        var schemaFiles = existing.Where(IsValidSchemaFile).ToArray();
+        if (schemaFiles.Length > 0) return schemaFiles;
         if (existing.Length > 0) return existing;
         var sources = roots.Where(Directory.Exists).SelectMany(root => new[] { root, Path.Combine(root, "config") })
             .Where(Directory.Exists).SelectMany(Files).Select(Path.GetFullPath).Distinct().ToArray();
         // Do not silently select one of several realms.
         if (sources.Length != 1) return sources;
-        var target = Path.Combine(_directory, Path.GetFileName(sources[0]));
         var bytes = File.ReadAllBytes(sources[0]);
+        // Legacy sources remain untouched and usable even when persistence fails.
+        // Only a validated migration is written to the persistent store.
+        if (RealmConfigurationService.IsLegacy(RealmConfigurationService.ReadIni(System.Text.Encoding.UTF8.GetString(bytes))))
+            return sources;
+        Directory.CreateDirectory(_directory);
+        var target = Path.Combine(_directory, Path.GetFileName(sources[0]));
         var temp = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
@@ -32,36 +40,72 @@ public sealed class RealmConfigurationStore
             File.Move(temp, target, false);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
-        return new[] { target }; // Originals are deliberately retained, including legacy files.
+        return new[] { target };
+    }
+    private static bool IsValidSchemaFile(string path)
+    {
+        try { return new RealmConfigurationService().Load(path).SchemaVersion == 1; }
+        catch (Exception) { return false; }
     }
     private static IEnumerable<string> Files(string directory) => Directory.EnumerateFiles(directory, "*.realm.conf")
         .Where(p => !Path.GetFileName(p).Equals("example.realm.conf", StringComparison.OrdinalIgnoreCase)).OrderBy(p => p);
+
+    private string MigrationDestination(string source)
+    {
+        var name = Path.GetFileName(source);
+        var candidate = Path.Combine(_directory, name);
+        var stem = name.EndsWith(".realm.conf", StringComparison.OrdinalIgnoreCase)
+            ? name[..^".realm.conf".Length] : Path.GetFileNameWithoutExtension(name);
+        for (int suffix = 1; File.Exists(candidate) || Directory.Exists(candidate); suffix++)
+            candidate = Path.Combine(_directory, stem + ".schema-v1" + (suffix == 1 ? "" : "-" + suffix) + ".realm.conf");
+        return candidate;
+    }
+    private static string LegacyStatus(string detail) =>
+        "Legacy compatibility mode: " + detail + " Original configuration preserved. You can still Enter Realm with a valid WoW client.";
+
     public async Task<(RealmInfo? Realm, string Status)> LoadAsync(string path, bool refresh = true)
     {
         var parser = new RealmConfigurationService();
         RealmInfo? realm = null;
-        string url;
-        bool legacy;
         try
         {
             var text = await File.ReadAllTextAsync(path);
             var ini = RealmConfigurationService.ReadIni(text);
-            legacy = !ini.ContainsKey("Config") && ini.ContainsKey("Server");
-            if (legacy)
+            if (RealmConfigurationService.IsLegacy(ini))
             {
-                url = ini.TryGetValue("Updates", out var fields) && fields.TryGetValue("UpdateURL", out var found) ? found : "";
-                if (url.Length == 0) return (null, "Legacy realm configuration preserved. Obtain a Schema v1 realm.conf from your realm administrator and place it in " + _directory + ".");
+                realm = parser.ParseLegacy(text);
+                var url = ini.TryGetValue("Updates", out var fields) && fields.TryGetValue("UpdateURL", out var found) ? found : "";
+                if (url.Length == 0) return (realm, LegacyStatus("Automatic Schema v1 upgrade is pending; no [Updates] UpdateURL is configured."));
+                if (!refresh) return (realm, LegacyStatus("Automatic Schema v1 upgrade is pending; refresh was not requested."));
+                var migration = await _updates.CheckForUpdateAsync(path, url);
+                if (migration.Status == UpdateCheckStatus.UpdateAvailable)
+                {
+                    Directory.CreateDirectory(_directory);
+                    var target = MigrationDestination(path);
+                    // Never replace the source or another realm, even if a file
+                    // appears between choosing the destination and committing it.
+                    migration = await _updates.ApplyUpdateAsync(target, migration.RemoteBytes!, overwrite: false);
+                    if (migration.Status == UpdateCheckStatus.UpdateApplied)
+                        return (parser.Load(target), "Legacy realm migrated to persistent Schema v1 configuration. Original legacy file preserved.");
+                }
+                return (realm, LegacyStatus("Automatic Schema v1 upgrade failed. " + migration.Message));
             }
-            else { realm = parser.Parse(text); url = realm.ConfigUrl; }
-            if ((!refresh && !legacy) || url.Length == 0) return (realm, "Schema v1 configuration loaded.");
-            var result = await _updates.CheckForUpdateAsync(path, url);
+            realm = parser.Parse(text);
+            var configUrl = realm.ConfigUrl;
+            if (!refresh || configUrl.Length == 0) return (realm, "Schema v1 configuration loaded.");
+            var result = await _updates.CheckForUpdateAsync(path, configUrl);
             if (result.Status == UpdateCheckStatus.UpdateAvailable)
                 result = await _updates.ApplyUpdateAsync(path, result.RemoteBytes!);
             if (result.Status == UpdateCheckStatus.UpdateApplied)
-                return (parser.Load(path), legacy ? "Legacy realm migrated to Schema v1; original configuration backed up." : "Realm configuration refreshed and backed up.");
+                return (parser.Load(path), "Realm configuration refreshed and backed up.");
             if (result.Status == UpdateCheckStatus.NoUpdateAvailable) return (realm, "Realm configuration is current.");
-            return (realm, (legacy ? "Legacy migration could not complete. Original configuration preserved. " : "Using last known-good realm configuration. ") + result.Message);
+            return (realm, "Using last known-good realm configuration. " + result.Message);
         }
-        catch (Exception ex) { return (realm, "Realm configuration needs attention: " + ex.Message); }
+        catch (Exception ex)
+        {
+            return (realm, realm?.IsLegacyCompatibility == true
+                ? LegacyStatus("Automatic Schema v1 upgrade failed. " + ex.Message)
+                : "Realm configuration needs attention: " + ex.Message);
+        }
     }
 }

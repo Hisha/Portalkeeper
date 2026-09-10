@@ -12,18 +12,22 @@ Client selection and preferences keep the existing JSON format and location. A t
 
 ## Legacy realm files
 
-Discovery prioritizes persistent realms. When none exist, a single realm beside the working directory/executable or in either `config` child is copied, verified byte-for-byte, and retained at its original location. More than one candidate produces an actionable selection message rather than silently choosing a realm. Import is idempotent; subsequent launches use the persistent copy.
+Discovery prioritizes valid persistent Schema v1 realms, including when an earlier release left a legacy file in the store. When no persistent realm exists, discovery checks the working directory/executable and their config children. A single adjacent Schema v1 file is copied and retained at its original location. A legacy file is loaded directly and is never replaced by migration. Multiple candidate realms still require an explicit selection.
 
-Files with `[Server]` and no `[Config]` are explicitly legacy. `[Updates] UpdateURL` is the only automatic bootstrap source in this repository's legacy format. If no URL exists, obtain a v1 file from the administrator and place it in the persistent realm directory. No guessed Eitrigg URL or hard-coded addon catalog is synthesized. Failed bootstrap leaves the legacy file intact and launch disabled until a supported configuration is available.
+Files with `[Server]` and no `[Config]` use legacy compatibility mode. Name/address and TCP ports are validated; absent ports default to 3724/8085. Client validation remains 3.3.5a/build 12340. Existing optional feed URLs are retained when valid; no Schema v1 addon/patch requirements are invented. The saved client selection and normal realmlist/launch path remain available with a valid client.
 
-A successful download is fully parsed, validates semantic MinimumVersion, component keys/requirements/sources, URLs, destination paths and hashes, and is staged on the same filesystem. Before replacement a unique timestamp/GUID backup is created in `realms/.portalkeeper/backups`. The old legacy backup is never rotated away by later refreshes. Once migrated, only `[Services] ConfigURL` drives startup and CHECK AGAIN refreshes. Invalid/offline responses preserve the existing v1 file and report known-good fallback.
+`[Updates] UpdateURL` is the automatic bootstrap source. Downloads pass the existing strict Schema v1 parser (including minimum version, components, URLs, paths and hashes) before being staged and committed without overwriting another file. The destination uses the source filename in the persistent store, with a .schema-v1 suffix (and numeric suffix if needed) on collisions. The original remains byte-for-byte intact, including a legacy file already in the persistent store.
+
+Missing/unreachable URLs, rejected downloads and persistence failures retain a usable legacy realm with a visible **Legacy compatibility mode** explanation. **CHECK AGAIN** remains available to retry. Network success is not a launch requirement. Only an unusable legacy connection/configuration prevents this fallback.
+
+After migration, discovery uses the persistent Schema v1 copy. The old UpdateURL is not fetched again through the normal startup path. Only the v1 `[Services] ConfigURL` drives ordinary refreshes, which continue to preserve last-known-good data and create unique backups before replacement.
 
 ## Windows installer upgrade
 
 1. Close Portalkeeper and run the newer `Portalkeeper-Setup-<version>.exe` as the same Windows user.
 2. Inno Setup uses unchanged AppId `{64CF5E71-169A-422C-86D5-AC9A62E0AEEE}`, per-user privileges and previous installation directory. It updates application payload and shortcuts in place. Do not uninstall first.
 3. Existing `%APPDATA%` state and user-created realm files are not deleted. The package contains only `example.realm.conf`, which discovery ignores.
-4. First launch imports any historical adjacent realm file and runs bootstrap above. The selected client and existing addons/patches remain intact.
+4. First launch loads any historical adjacent realm file and attempts migration above. The selected client and existing addons/patches remain intact.
 
 The installer has no WoW installation/deletion steps and no user-specific migration logic. Windows upgrade behavior has been reviewed in the Inno script; native installer execution requires Windows and Inno Setup.
 

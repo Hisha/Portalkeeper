@@ -6,6 +6,7 @@ namespace Portalkeeper.Models;
 public sealed class RealmInfo
 {
     public int SchemaVersion { get; init; }
+    public bool IsLegacyCompatibility { get; init; }
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
     public string WebsiteUrl { get; init; } = "";
@@ -22,7 +23,7 @@ public sealed class RealmInfo
     public string ConfigUrl { get; init; } = "";
     public IReadOnlyList<AddonDefinition> Addons { get; init; } = Array.Empty<AddonDefinition>();
     public IReadOnlyList<PatchDefinition> Patches { get; init; } = Array.Empty<PatchDefinition>();
-    public bool IsConfigured => SchemaVersion == 1 && Name.Length > 0 && Address.Length > 0;
+    public bool IsConfigured => (SchemaVersion == 1 || (SchemaVersion == 0 && IsLegacyCompatibility)) && Name.Length > 0 && Address.Length > 0;
 }
 public sealed class ClientRequirements
 {

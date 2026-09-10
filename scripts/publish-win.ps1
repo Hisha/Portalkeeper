@@ -77,6 +77,12 @@ New-Item -ItemType Directory -Path $PackageDir -Force | Out-Null
 & dotnet publish $Project -c Release -r $Rid --self-contained true -o $PackageDir
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+# Fail before packaging if the Windows entry point is missing.
+$AppExe = Join-Path $PackageDir 'Portalkeeper.exe'
+if (-not (Test-Path -LiteralPath $AppExe -PathType Leaf)) {
+    throw "Portalkeeper.exe missing from publish output: $AppExe"
+}
+
 # The project publishes StormLib.dll and its license beside Portalkeeper.exe.
 $StormLib = Join-Path $PackageDir 'StormLib.dll'
 $StormLibLicense = Join-Path $PackageDir 'StormLib.LICENSE.txt'

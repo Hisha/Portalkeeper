@@ -113,6 +113,45 @@ public sealed class RealmConfigurationService
             StatusUrl = ManagedPath.Url(Get("Services", "StatusURL"), true), CalendarUrl = ManagedPath.Url(Get("Services", "CalendarURL"), true),
             ArmoryUrl = ManagedPath.Url(Get("Services", "ArmoryURL"), true), ConfigUrl = ManagedPath.Url(Get("Services", "ConfigURL"), true), Addons = addons, Patches = patches };
     }
+    // Legacy is a separate compatibility path; Parse remains strictly Schema v1.
+    internal static bool IsLegacy(Dictionary<string, Dictionary<string, string>> ini) =>
+        !ini.ContainsKey("Config") && ini.ContainsKey("Server");
+
+    public RealmInfo ParseLegacy(string text)
+    {
+        var ini = ReadIni(text);
+        if (!IsLegacy(ini)) throw new InvalidDataException("Not a legacy [Server] realm configuration.");
+        string Get(string section, string key) =>
+            ini.TryGetValue(section, out var fields) && fields.TryGetValue(key, out var value) ? value : "";
+        var name = Get("Server", "Name");
+        var address = Get("Server", "Address");
+        if (name.Length == 0 || address.Length == 0 ||
+            Uri.CheckHostName(address) == UriHostNameType.Unknown || address.Any(char.IsWhiteSpace))
+            throw new InvalidDataException("Legacy [Server] requires a Name and a valid host name or IP Address.");
+        int Port(string key, int fallback)
+        {
+            var value = Get("Server", key);
+            if (value.Length == 0) return fallback;
+            if (!int.TryParse(value, out var port) || port < 1 || port > 65535)
+                throw new InvalidDataException($"Legacy {key} must be a TCP port from 1 through 65535.");
+            return port;
+        }
+        string OptionalUrl(string key)
+        {
+            try { return ManagedPath.Url(Get("Updates", key), true); }
+            catch (InvalidDataException) { return ""; } // Optional feeds must not prevent connection.
+        }
+        return new RealmInfo
+        {
+            IsLegacyCompatibility = true, Name = name, Address = address,
+            AuthPort = Port("AuthPort", 3724), WorldPort = Port("WorldPort", 8085),
+            ManifestUrl = OptionalUrl("ManifestURL"), NewsUrl = OptionalUrl("NewsURL"),
+            StatusUrl = OptionalUrl("StatusURL"), CalendarUrl = OptionalUrl("CalendarURL"),
+            ArmoryUrl = OptionalUrl("ArmoryURL")
+            // Keep default 3.3.5a/build 12340 client validation. No invented component policy.
+        };
+    }
+
     public static int CompareVersions(string left, string right)
     {
         static (Version Core, string[] Pre) Read(string value)

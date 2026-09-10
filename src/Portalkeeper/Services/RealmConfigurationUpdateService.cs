@@ -23,20 +23,20 @@ public sealed class RealmConfigurationUpdateService
         catch (InvalidDataException ex) { return new(UpdateCheckStatus.ValidationFailure, null, null, null, ex.Message); }
         catch (Exception) { return new(UpdateCheckStatus.DownloadFailure, null, null, null, "Configuration download failed; the existing file is preserved."); }
     }
-    public async Task<RealmConfigurationUpdateResult> ApplyUpdateAsync(string path, byte[] bytes)
+    public async Task<RealmConfigurationUpdateResult> ApplyUpdateAsync(string path, byte[] bytes, bool overwrite = true)
     {
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
             await File.WriteAllBytesAsync(temporary, bytes);
             new RealmConfigurationService().Load(temporary);
-            if (File.Exists(path))
+            if (overwrite && File.Exists(path))
             {
                 var backups = Path.Combine(Path.GetDirectoryName(path)!, ".portalkeeper", "backups");
                 Directory.CreateDirectory(backups);
                 File.Copy(path, Path.Combine(backups, Path.GetFileName(path) + "." + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + "." + Guid.NewGuid().ToString("N") + ".bak"));
             }
-            File.Move(temporary, path, true);
+            File.Move(temporary, path, overwrite);
             return new(UpdateCheckStatus.UpdateApplied, null, null, null);
         }
         catch (InvalidDataException ex) { return new(UpdateCheckStatus.ValidationFailure, null, null, null, ex.Message); }
