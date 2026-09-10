@@ -76,7 +76,7 @@ public sealed class AddonInfo
                 ? "Update Available"
                 : IsNewerThanManifest
                     ? "Newer"
-                    : "Current";
+                    : Definition.SourceWarning.Length > 0 ? "Installed (cached source)" : "Current";
 
     public string StatusSymbol =>
         IsSourceError
@@ -94,9 +94,10 @@ public sealed class AddonInfo
             (Definition.IsGitHubSource &&
              !string.IsNullOrWhiteSpace(Definition.SourceCommit))
             ||
-            (!string.IsNullOrWhiteSpace(Definition.DownloadUrl) &&
-             !string.IsNullOrWhiteSpace(Definition.Sha256))
+            !string.IsNullOrWhiteSpace(Definition.DownloadUrl)
         );
+
+    public bool CanReinstall => IsInstalled && !IsSourceError && !IsUpdateAvailable;
 
     public string ActionText =>
         !IsInstalled ? "INSTALL" : "UPDATE";
@@ -107,6 +108,7 @@ public sealed class AddonInfo
         {
             if (IsSourceError)
                 return DiscoveryError;
+            if (Definition.SourceWarning.Length > 0) return Definition.SourceWarning + $" Installed: {InstalledVersion}; cached available: {Definition.Version}";
 
             if (!IsInstalled)
                 return HasAvailableVersion

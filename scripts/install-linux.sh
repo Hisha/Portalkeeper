@@ -18,6 +18,21 @@ STAGE="$(mktemp -d "$DATA_DIR/.portalkeeper-install.XXXXXX")"
 trap 'rm -rf -- "$STAGE"' EXIT
 cp -a "$SOURCE/." "$STAGE/"
 touch "$STAGE/.portalkeeper-install"
+# Realm files historically lived beside the application. Retain them during
+# upgrades, even when Portalkeeper has not yet imported them into user data.
+if [[ -d "$DEST" ]]; then
+    if [[ -d "$DEST/config" ]]; then
+        mkdir -p "$STAGE/config"
+        cp -a "$DEST/config/." "$STAGE/config/"
+    fi
+    shopt -s nullglob
+    for realm in "$DEST"/*.realm.conf; do
+        cp -a -- "$realm" "$STAGE/"
+    done
+    if [[ -d "$DEST/.portalkeeper" ]]; then
+        cp -a "$DEST/.portalkeeper" "$STAGE/"
+    fi
+fi
 # Keep the previous application available until the replacement is staged.
 BACKUP=""
 if [[ -d "$DEST" ]]; then

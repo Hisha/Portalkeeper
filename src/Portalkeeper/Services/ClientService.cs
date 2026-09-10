@@ -19,8 +19,9 @@ public sealed class ClientService
         "<version>12340</version>"
     };
 
-    public ClientInfo ValidateClient(string directoryPath)
+    public ClientInfo ValidateClient(string directoryPath, ClientRequirements? requirements = null)
     {
+        requirements ??= new ClientRequirements();
         if (string.IsNullOrWhiteSpace(directoryPath))
         {
             return new ClientInfo
@@ -44,7 +45,7 @@ public sealed class ClientService
             };
         }
 
-        var executablePath = FindWowExecutable(fullDirectoryPath);
+        var executablePath = FindWowExecutable(fullDirectoryPath, requirements.Executable);
 
         if (executablePath is null)
         {
@@ -72,11 +73,11 @@ public sealed class ClientService
         //
         var versionInfo = TryReadVersionInfo(executablePath);
 
-        if (IsSupportedVersionString(versionInfo))
+        if (IsSupportedVersionString(versionInfo, requirements))
         {
             return CreateSupportedClient(
                 fullDirectoryPath,
-                executablePath);
+                executablePath, requirements);
         }
 
         //
@@ -84,11 +85,11 @@ public sealed class ClientService
         // cross-platform, so inspect the executable itself for Blizzard's
         // embedded build markers.
         //
-        if (ContainsSupportedBuildMarkers(executablePath))
+        if (ContainsSupportedBuildMarkers(executablePath, requirements))
         {
             return CreateSupportedClient(
                 fullDirectoryPath,
-                executablePath);
+                executablePath, requirements);
         }
 
         var detectedVersion =
@@ -104,39 +105,44 @@ public sealed class ClientService
             ExecutableFound = true,
             IsSupportedClient = false,
             StatusMessage =
-                $"Wow.exe found, but build {SupportedBuild} could not be verified."
+                $"{requirements.Executable} found, but build {requirements.Build} could not be verified."
         };
     }
 
     private static ClientInfo CreateSupportedClient(
         string directoryPath,
-        string executablePath)
+        string executablePath, ClientRequirements requirements)
     {
+        if (requirements.ExecutableSha256.Length > 0)
+        {
+            using var stream = File.OpenRead(executablePath);
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+            if (!hash.Equals(requirements.ExecutableSha256, StringComparison.OrdinalIgnoreCase))
+                return new ClientInfo { DirectoryPath = directoryPath, ExecutablePath = executablePath, ExecutableFound = true, StatusMessage = "Client executable SHA-256 mismatch." };
+        }
         return new ClientInfo
         {
             DirectoryPath = directoryPath,
             ExecutablePath = executablePath,
-            Version = $"3.3.5a ({SupportedBuild})",
+            Version = $"{requirements.Version} ({requirements.Build})",
             ExecutableFound = true,
             IsSupportedClient = true,
             StatusMessage =
-                $"World of Warcraft 3.3.5a build {SupportedBuild} verified."
+                $"World of Warcraft {requirements.Version} build {requirements.Build} verified."
         };
     }
 
-    private static string? FindWowExecutable(string directoryPath)
+    public static string? FindWowExecutable(string directoryPath, string executable = "Wow.exe")
     {
         //
         // Windows file systems are normally case-insensitive.
         // Linux file systems are normally case-sensitive, so support
         // the common capitalization variants explicitly.
         //
-        var candidates = new[]
-        {
-            Path.Combine(directoryPath, "Wow.exe"),
-            Path.Combine(directoryPath, "wow.exe"),
-            Path.Combine(directoryPath, "WoW.exe")
-        };
+        ManagedPath.Relative(executable, true);
+        var candidates = Directory.Exists(directoryPath)
+            ? System.Linq.Enumerable.Where(Directory.EnumerateFiles(directoryPath), p => Path.GetFileName(p).Equals(executable, StringComparison.OrdinalIgnoreCase))
+            : Array.Empty<string>();
 
         foreach (var candidate in candidates)
         {
@@ -200,7 +206,7 @@ public sealed class ClientService
         return string.Empty;
     }
 
-    private static bool IsSupportedVersionString(string? version)
+    private static bool IsSupportedVersionString(string? version, ClientRequirements requirements)
     {
         if (string.IsNullOrWhiteSpace(version))
         {
@@ -209,16 +215,16 @@ public sealed class ClientService
 
         return
             version.Contains(
-                SupportedVersion,
+                requirements.Version.TrimEnd('a'),
                 StringComparison.OrdinalIgnoreCase)
             &&
             version.Contains(
-                SupportedBuild,
+                requirements.Build,
                 StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsSupportedBuildMarkers(
-        string executablePath)
+        string executablePath, ClientRequirements requirements)
     {
         try
         {
@@ -236,7 +242,7 @@ public sealed class ClientService
             foreach (var marker in BuildMarkers)
             {
                 if (contents.Contains(
-                        marker,
+                        marker.Replace(SupportedBuild, requirements.Build),
                         StringComparison.Ordinal))
                 {
                     buildFound = true;
@@ -255,7 +261,7 @@ public sealed class ClientService
             // occurrence of "12340".
             //
             return contents.Contains(
-                SupportedVersion,
+                requirements.Version.TrimEnd('a'),
                 StringComparison.Ordinal);
         }
         catch

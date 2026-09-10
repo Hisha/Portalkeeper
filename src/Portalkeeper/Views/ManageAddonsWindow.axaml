@@ -190,6 +190,8 @@
                                             IsVisible="{Binding CanInstallOrUpdate}"
                                             Click="AddonAction_Click"
                                             MinWidth="104" />
+                                    <Button Content="REINSTALL / UPDATE" IsVisible="{Binding CanReinstall}" Click="AddonAction_Click" MinWidth="104" />
+                                    <Button Content="UNINSTALL" IsVisible="{Binding IsInstalled}" Click="Uninstall_Click" MinWidth="104" />
                                     <Button Content="REMOVE"
                                             IsVisible="{Binding CanRemoveFromManagement}"
                                             Click="RemovePersonalAddon_Click"

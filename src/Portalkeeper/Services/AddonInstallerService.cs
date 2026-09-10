@@ -19,6 +19,8 @@ public sealed class AddonInstallerService
         AddonDefinition addon)
     {
         ValidateDefinition(addon);
+        _ = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
+        ManagedPath.Resolve(clientDirectory, ".portalkeeper/backups");
 
         var addonsDirectory = Path.Combine(
             clientDirectory,
@@ -49,7 +51,7 @@ public sealed class AddonInstallerService
             else
             {
                 await DownloadAsync(addon.DownloadUrl, archivePath);
-                VerifySha256(archivePath, addon.Sha256);
+                if (addon.Sha256.Length > 0) VerifySha256(archivePath, addon.Sha256);
             }
 
             var extractDirectory = Path.Combine(workDirectory, "extracted");
@@ -95,9 +97,7 @@ public sealed class AddonInstallerService
 
             CopyDirectory(sourceDirectory, preparedDirectory);
 
-            var destinationDirectory = Path.Combine(
-                addonsDirectory,
-                addon.Folder);
+            var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
 
             var backupDirectory = CreateBackupPath(
                 clientDirectory,
@@ -162,8 +162,20 @@ public sealed class AddonInstallerService
         }
     }
 
+    public void Remove(string clientDirectory, AddonDefinition addon)
+    {
+        ManagedPath.Relative(addon.Id, true);
+        ManagedPath.Relative(addon.Folder, true);
+        var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
+        if (!Directory.Exists(destination)) return;
+        var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), addon.Folder));
+        Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+        Directory.Move(destination, backup);
+    }
     private static void ValidateDefinition(AddonDefinition addon)
     {
+        ManagedPath.Relative(addon.Id, true);
+        ManagedPath.Relative(addon.Folder, true);
         if (string.IsNullOrWhiteSpace(addon.Id) ||
             string.IsNullOrWhiteSpace(addon.Folder))
         {
@@ -205,13 +217,9 @@ public sealed class AddonInstallerService
                 $"No download URL is configured for {addon.Name}.");
         }
 
-        if (string.IsNullOrWhiteSpace(addon.Sha256) ||
-            addon.Sha256.Length != 64 ||
-            !addon.Sha256.All(Uri.IsHexDigit))
-        {
-            throw new InvalidDataException(
-                $"A valid SHA-256 hash is required for {addon.Name}.");
-        }
+        ManagedPath.Url(addon.DownloadUrl);
+        ManagedPath.Hash(addon.Sha256);
+
     }
 
     private static async Task DownloadAsync(
@@ -271,10 +279,15 @@ public sealed class AddonInstallerService
 
         using var archive = ZipFile.OpenRead(archivePath);
 
+        if (archive.Entries.Count > 50000 || archive.Entries.Sum(e => e.Length) > 1024L * 1024 * 1024)
+            throw new InvalidDataException("Addon archive exceeds safe extraction limits.");
         foreach (var entry in archive.Entries)
         {
+            if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+                throw new InvalidDataException("Addon archive contains a symbolic link.");
+            var relative = ManagedPath.Relative(entry.FullName.Replace('\\', '/').TrimEnd('/'));
             var destinationPath = Path.GetFullPath(
-                Path.Combine(destinationDirectory, entry.FullName));
+                Path.Combine(destinationDirectory, relative));
 
             if (!destinationPath.StartsWith(
                     destinationRoot,
@@ -378,13 +391,7 @@ public sealed class AddonInstallerService
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff");
 
-        return Path.Combine(
-            clientDirectory,
-            ".portalkeeper",
-            "backups",
-            addon.Id,
-            timestamp,
-            addon.Folder);
+        return ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, timestamp + "-" + Guid.NewGuid().ToString("N"), addon.Folder));
     }
 
     private static void CopyDirectory(

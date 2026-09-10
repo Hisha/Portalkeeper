@@ -22,7 +22,7 @@ bash install.sh
 
 The installer checks native dependencies, copies the package into `$XDG_DATA_HOME/Portalkeeper-app` (normally `~/.local/share/Portalkeeper-app`), and creates `portalkeeper.desktop` in the adjacent `applications` directory. Open Portalkeeper from the application menu. The icon is included. If the menu does not refresh immediately, log out and back in.
 
-To update, close Portalkeeper, extract the new ZIP, and run its installer. The installer replaces only its marked application directory. Existing application settings and caches remain separate and are not removed. Keep the extracted download until installation succeeds.
+To update, close Portalkeeper, extract the new ZIP, and run its installer. The installer replaces only its marked application directory. Existing application settings and caches remain separate and are not removed. The old application config directory, root realm files and local backup directory are preserved before the marked application folder is replaced. On first launch, a single legacy/application-adjacent realm is copied to `$XDG_CONFIG_HOME/Portalkeeper/realms` (normally `~/.config/Portalkeeper/realms`) and safely bootstrapped to Schema v1 when possible. Existing WoW directories, addons and patches are never part of the application replacement. See [Schema v1 upgrades](schema-v1-upgrade.md). Keep the extracted download until installation succeeds.
 
 To uninstall, remove the `Portalkeeper-app` directory and `applications/portalkeeper.desktop` under your XDG data directory. This leaves personal configuration/cache files intact.
 

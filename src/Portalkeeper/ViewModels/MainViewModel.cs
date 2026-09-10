@@ -13,14 +13,12 @@ namespace Portalkeeper.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private readonly AddonManifestService _addonManifestService;
     private readonly GitHubAddonSourceService _gitHubAddonSourceService;
     private readonly AddonService _addonService;
     private readonly AddonInstallerService _addonInstallerService;
     private readonly PersonalAddonService _personalAddonService;
     private readonly ClientService _clientService;
     private readonly SettingsService _settingsService;
-    private readonly RealmConfigurationService _realmConfigurationService;
     private readonly RealmLaunchService _realmLaunchService;
     private readonly RealmHealthService _realmHealthService;
     private readonly RealmCalendarService _realmCalendarService;
@@ -29,7 +27,47 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly SemaphoreSlim _addonRefreshLock = new(1, 1);
     private readonly SemaphoreSlim _realmHealthLock = new(1, 1);
 
+    private bool _isRefreshingConfiguration;
+    private bool _isManagingComponents;
+    private async Task RunComponentOperationAsync(Func<Task> operation)
+    {
+        if (_isManagingComponents || _isRefreshingConfiguration || IsLaunching || IsGameRunning)
+            throw new InvalidOperationException("Wait for the current operation and close World of Warcraft before modifying components.");
+        _isManagingComponents = true;
+        OnPropertyChanged(nameof(CanEnterRealm));
+        try { await operation(); }
+        finally { _isManagingComponents = false; OnPropertyChanged(nameof(CanEnterRealm)); UpdateLaunchReadinessStatus(); }
+    }
     private RealmInfo? _realmInfo;
+    private readonly RealmConfigurationStore _realmStore = new();
+    private readonly PatchService _patchService = new();
+    private readonly SemaphoreSlim _configLock = new(1, 1);
+    private string _configurationStatus = "Checking realm configuration...";
+    public string ConfigurationStatus => _configurationStatus;
+    public string ApplicationVersion => "Portalkeeper " + RealmConfigurationService.CurrentVersion;
+    public IReadOnlyList<PatchInfo> Patches { get; private set; } = Array.Empty<PatchInfo>();
+    public bool PatchesReady => Patches.All(p => p.Definition.Requirement != ComponentRequirement.Required || p.IsValid);
+    public string RealmDescription => _realmInfo?.Description ?? "";
+    public string RealmWebsite => _realmInfo?.WebsiteUrl ?? "";
+    public string RealmConnection => _realmInfo is null ? "" : $"{_realmInfo.Address} • Auth {_realmInfo.AuthPort} • World {_realmInfo.WorldPort}";
+    private void RefreshPatches()
+    {
+        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ClientPath, p)).ToArray() ?? Array.Empty<PatchInfo>();
+        OnPropertyChanged(nameof(Patches));
+        OnPropertyChanged(nameof(PatchesReady));
+        OnPropertyChanged(nameof(CanEnterRealm));
+        UpdateLaunchReadinessStatus();
+    }
+    public Task ManagePatchAsync(string id, bool remove) => RunComponentOperationAsync(() => ManagePatchCoreAsync(id, remove));
+    private async Task ManagePatchCoreAsync(string id, bool remove)
+    {
+        if (IsGameRunning || IsLaunching) throw new InvalidOperationException("Close World of Warcraft before managing patches.");
+        var patch = _realmInfo?.Patches.SingleOrDefault(p => p.Id == id) ?? throw new InvalidOperationException("Patch is not in the active realm configuration.");
+        if (remove) _patchService.Remove(ClientPath, patch);
+        else await _patchService.InstallAsync(ClientPath, patch);
+        RefreshPatches();
+    }
+
 
     private string _realmStatus =
         "No realm configuration available.";
@@ -89,14 +127,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel(SettingsService? settingsService = null)
     {
-        _addonManifestService = new AddonManifestService();
         _gitHubAddonSourceService = new GitHubAddonSourceService();
         _addonService = new AddonService();
         _addonInstallerService = new AddonInstallerService();
         _personalAddonService = new PersonalAddonService();
         _clientService = new ClientService();
         _settingsService = settingsService ?? new SettingsService();
-        _realmConfigurationService = new RealmConfigurationService();
         _realmLaunchService = new RealmLaunchService();
         _realmHealthService = new RealmHealthService();
         _realmCalendarService = new RealmCalendarService();
@@ -104,9 +140,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _realmArmoryService = new RealmArmoryService();
 
         LoadSavedClient();
-        LoadRealmConfiguration();
-        _ = LoadAddonsAsync();
-        _ = RefreshRealmHealthAsync();
+        _ = RediscoverRealmConfigurationAsync();
         _ = RunRealmHealthLoopAsync();
     }
 
@@ -149,21 +183,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     ? "● Needs Attention"
                     : "● Not Configured";
 
-    public async Task RefreshAddonsAsync()
-    {
-        // CHECK AGAIN is also the user's explicit request to rescan
-        // the launcher's configuration. This makes first-run setup
-        // work without restarting Portalkeeper after a realm file is
-        // copied into place.
-        LoadRealmConfiguration();
+    public Task RefreshAddonsAsync() => RediscoverRealmConfigurationAsync();
 
-        await Task.WhenAll(
-            LoadAddonsAsync(),
-            RefreshRealmHealthAsync());
-    }
-
-    public async Task InstallOrUpdateAddonAsync(string addonId)
+    public Task InstallOrUpdateAddonAsync(string addonId) => RunComponentOperationAsync(() => InstallOrUpdateAddonCoreAsync(addonId));
+    private async Task InstallOrUpdateAddonCoreAsync(string addonId)
     {
+        if (_isRefreshingConfiguration || IsGameRunning || IsLaunching) throw new InvalidOperationException("Wait for configuration checking and close World of Warcraft before modifying addons.");
         var addon = _addons.FirstOrDefault(item =>
             item.Definition.Id.Equals(
                 addonId,
@@ -182,8 +207,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         await LoadAddonsAsync();
     }
 
-    public async Task InstallOrUpdateAllAsync()
+    public Task InstallOrUpdateAllAsync() => RunComponentOperationAsync(() => InstallOrUpdateAllCoreAsync());
+    private async Task InstallOrUpdateAllCoreAsync()
     {
+        if (_isRefreshingConfiguration || IsGameRunning || IsLaunching) throw new InvalidOperationException("Wait for configuration checking and close World of Warcraft before modifying addons.");
         var pending = _addons
             .Where(addon => addon.CanInstallOrUpdate)
             .ToArray();
@@ -261,6 +288,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public Task RemoveInstalledAddonAsync(string addonId) => RunComponentOperationAsync(() => RemoveInstalledAddonCoreAsync(addonId));
+    private async Task RemoveInstalledAddonCoreAsync(string addonId)
+    {
+        if (IsGameRunning || IsLaunching) throw new InvalidOperationException("Close World of Warcraft before removing addons.");
+        var addon = _addons.Single(a => a.Definition.Id == addonId);
+        _addonInstallerService.Remove(ClientPath, addon.Definition);
+        await LoadAddonsAsync();
+    }
     public async Task RemovePersonalAddonAsync(string addonId)
     {
         var addon = _addons.FirstOrDefault(item =>
@@ -475,9 +510,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 : "ENTER REALM";
 
     public bool CanEnterRealm =>
+        !_isRefreshingConfiguration &&
+        !_isManagingComponents &&
         ClientValid &&
         RealmConfigured &&
         AddonsReady &&
+        PatchesReady &&
         !IsCheckingAddons &&
         !IsLaunching &&
         !IsGameRunning;
@@ -494,6 +532,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
+            ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
+            RefreshPatches();
+            if (!ClientValid || !PatchesReady) throw new InvalidOperationException(!ClientValid ? ClientStatus : "Required patches need attention.");
+            var currentAddons = _addonService.InspectAddons(ClientPath, _addonManifest!);
+            var unsatisfied = currentAddons.Where(a => a.Definition.Required && (!a.IsInstalled || a.IsUpdateAvailable)).ToArray();
+            if (unsatisfied.Length > 0) throw new InvalidOperationException("Required addons need attention: " + string.Join(", ", unsatisfied.Select(a => a.Definition.Name)));
             result = _realmLaunchService.PrepareAndLaunch(
                 ClientPath,
                 _realmInfo);
@@ -582,8 +626,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void SetClientDirectory(string directoryPath)
     {
+        if (_isManagingComponents || IsLaunching || IsGameRunning) return;
         var client =
-            _clientService.ValidateClient(directoryPath);
+            _clientService.ValidateClient(directoryPath, _realmInfo?.Client);
 
         ApplyClientInfo(client);
 
@@ -593,6 +638,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SaveSettings();
         OnPropertyChanged(nameof(LaunchEnvironmentStatus));
 
+        RefreshPatches();
         _ = LoadAddonsAsync();
     }
 
@@ -618,7 +664,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void SaveSettings()
     {
-        _savedSettings.ClientPath = ClientValid ? ClientPath : string.Empty;
+        if (ClientValid) _savedSettings.ClientPath = ClientPath;
         _savedSettings.HidePortalkeeperWhileGameRuns = HidePortalkeeperWhileGameRuns;
         _settingsService.Save(_savedSettings);
     }
@@ -641,135 +687,70 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task RediscoverRealmConfigurationAsync()
     {
-        LoadRealmConfiguration();
-
-        if (!RealmConfigured)
-            return;
-
-        await Task.WhenAll(
-            RefreshRealmHealthAsync(),
-            LoadAddonsAsync());
-    }
-
-    private void LoadRealmConfiguration()
-    {
-        SetTransmogSupported(false);
-        var candidates =
-            FindRealmConfigurationFiles();
-
-        if (candidates.Count == 0)
-        {
-            _realmInfo = null;
-            _realmHealthState = RealmHealthState.Unknown;
-            _realmStatus =
-                "Place a *.realm.conf file in Portalkeeper's config folder, then click CHECK AGAIN.";
-
-            NotifyRealmChanged();
-            return;
-        }
-
-        if (candidates.Count > 1)
-        {
-            _realmInfo = null;
-            _realmHealthState = RealmHealthState.Unknown;
-            _realmStatus =
-                $"Multiple realm configurations found ({candidates.Count}).";
-
-            NotifyRealmChanged();
-            return;
-        }
-
+        if (_isManagingComponents || _isRefreshingConfiguration || IsGameRunning || IsLaunching) return;
+        _isRefreshingConfiguration = true;
+        OnPropertyChanged(nameof(CanEnterRealm));
         try
         {
-            var realm =
-                _realmConfigurationService.Load(
-                    candidates[0]);
+            await LoadRealmConfigurationAsync();
+            await Task.WhenAll(RefreshRealmHealthAsync(), LoadAddonsAsync());
+        }
+        finally
+        {
+            _isRefreshingConfiguration = false;
+            OnPropertyChanged(nameof(CanEnterRealm));
+            UpdateLaunchReadinessStatus();
+        }
+    }
 
-            if (!realm.IsConfigured)
+    private async Task LoadRealmConfigurationAsync()
+    {
+        await _configLock.WaitAsync();
+        try
+        {
+            SetTransmogSupported(false);
+            var candidates = _realmStore.Discover(Directory.GetCurrentDirectory(), AppContext.BaseDirectory);
+            if (candidates.Count != 1)
             {
                 _realmInfo = null;
-                _realmHealthState = RealmHealthState.Unknown;
-                _realmStatus =
-                    "Realm configuration is missing required settings.";
-
-                NotifyRealmChanged();
-                return;
+                _configurationStatus = candidates.Count == 0
+                    ? "Place a *.realm.conf in " + RealmConfigurationStore.DefaultDirectory + ", then click CHECK AGAIN."
+                    : $"Multiple realm configurations found ({candidates.Count}). Keep the selected realm in {RealmConfigurationStore.DefaultDirectory}.";
             }
-
-            _realmInfo = realm;
-            OnPropertyChanged(nameof(ShowTransmogrifiedAppearances));
-            _ = LoadArmoryAsync();
-            _realmHealthState = RealmHealthState.Checking;
-            _realmStatus =
-                "Realm configuration loaded; checking server status...";
-
-            NotifyRealmChanged();
+            else
+            {
+                var result = await _realmStore.LoadAsync(candidates[0]);
+                _realmInfo = result.Realm;
+                _configurationStatus = result.Status;
+            }
+            _realmStatus = _configurationStatus;
+            _realmHealthState = RealmHealthState.Unknown;
+            if (_realmInfo is not null)
+            {
+                ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
+                if (ArmoryAvailable) _ = LoadArmoryAsync();
+            }
         }
         catch (Exception ex)
         {
             _realmInfo = null;
-            _realmHealthState = RealmHealthState.Unknown;
-            _realmStatus =
-                UserErrorService.Format(ex, "Unable to load realm configuration");
-
-            NotifyRealmChanged();
+            _configurationStatus = UserErrorService.Format(ex, "Realm configuration needs attention");
+            _realmStatus = _configurationStatus;
         }
-    }
-
-    private static List<string> FindRealmConfigurationFiles()
-    {
-        // Support both the historical "beside Portalkeeper" location
-        // and the much more natural config/ directory. Search relative to
-        // both the current working directory and the executable directory
-        // so packaged/desktop launches behave the same as terminal launches.
-        var roots =
-            new[]
-            {
-                Directory.GetCurrentDirectory(),
-                AppContext.BaseDirectory
-            }
-            .Where(Directory.Exists)
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        var searchDirectories = roots
-            .SelectMany(root => new[]
-            {
-                root,
-                Path.Combine(root, "config")
-            })
-            .Where(Directory.Exists)
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        var files = new List<string>();
-
-        foreach (var directory in searchDirectories)
+        finally
         {
-            files.AddRange(
-                Directory.EnumerateFiles(
-                    directory,
-                    "*.realm.conf",
-                    SearchOption.TopDirectoryOnly));
+            RefreshPatches();
+            NotifyRealmChanged();
+            _configLock.Release();
         }
-
-        return files
-            .Select(Path.GetFullPath)
-            // The shipped template is documentation, not a selectable realm.
-            .Where(path =>
-                !Path.GetFileName(path).Equals(
-                    "example.realm.conf",
-                    StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(
-                path => path,
-                StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private void NotifyRealmChanged()
     {
+        OnPropertyChanged(nameof(ConfigurationStatus));
+        OnPropertyChanged(nameof(RealmDescription));
+        OnPropertyChanged(nameof(RealmWebsite));
+        OnPropertyChanged(nameof(RealmConnection));
         OnPropertyChanged(nameof(RealmName));
         OnPropertyChanged(nameof(RealmStatus));
         OnPropertyChanged(nameof(RealmConfigured));
@@ -814,26 +795,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        string? manifestLocation = null;
-
-        if (_realmInfo is not null &&
-            !string.IsNullOrWhiteSpace(_realmInfo.ManifestUrl))
+        if (_realmInfo is null)
         {
-            manifestLocation = _realmInfo.ManifestUrl;
-        }
-
-        if (string.IsNullOrWhiteSpace(manifestLocation))
-            manifestLocation = FindLocalAddonManifest();
-
-        if (string.IsNullOrWhiteSpace(manifestLocation))
-        {
-            _addonStatus =
-                "No addon manifest available.";
-
+            _addons = Array.Empty<AddonInfo>();
             _addonsLoaded = false;
-            IsCheckingAddons = false;
             NotifyAddonsChanged();
-            UpdateLaunchReadinessStatus();
             return;
         }
 
@@ -843,16 +809,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var rawManifest =
-                await _addonManifestService.LoadAsync(
-                    manifestLocation);
-
-            var resolvedRealmManifest =
-                await _gitHubAddonSourceService.ResolveManifestAsync(
-                    rawManifest);
-
-            var resolvedDefinitions =
-                resolvedRealmManifest.Addons.ToList();
+            var rawManifest = new AddonManifest { Addons = _realmInfo.Addons.ToList() };
+            var resolvedDefinitions = new List<AddonDefinition>();
+            var realmSourceErrors = new Dictionary<string, string>();
+            foreach (var definition in rawManifest.Addons)
+            {
+                try { resolvedDefinitions.Add(definition.IsGitHubSource ? await _gitHubAddonSourceService.ResolveAsync(definition) : definition); }
+                catch (Exception ex)
+                {
+                    // Keep inspecting existing installs when the source is offline.
+                    resolvedDefinitions.Add(definition);
+                    realmSourceErrors[definition.Id] = UserErrorService.Format(ex);
+                }
+            }
+            var resolvedRealmManifest = new AddonManifest { Addons = resolvedDefinitions.ToList() };
 
             // Realm policy always wins over a matching personal addon.
             // Reconcile before loading personal sources so the same addon cannot
@@ -876,9 +846,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
                 try
                 {
-                    resolvedDefinitions.Add(
-                        await _gitHubAddonSourceService.ResolveAsync(
-                            personalDefinition));
+                    var resolved = await _gitHubAddonSourceService.ResolveAsync(personalDefinition);
+                    if (!resolvedDefinitions.Any(d => d.Folder.Equals(resolved.Folder, StringComparison.OrdinalIgnoreCase)))
+                        resolvedDefinitions.Add(resolved);
                 }
                 catch (Exception ex)
                 {
@@ -902,6 +872,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 _addonService.InspectAddons(
                     ClientPath,
                     _addonManifest)
+                .Select(info => realmSourceErrors.TryGetValue(info.Definition.Id, out var error)
+                    ? new AddonInfo { Definition = info.Definition, DirectoryPath = info.DirectoryPath,
+                        IsInstalled = info.IsInstalled, InstalledVersion = info.InstalledVersion,
+                        InstalledSourceCommit = info.InstalledSourceCommit, DiscoveryError = error }
+                    : info)
                 .Concat(personalSourceErrors)
                 .ToArray();
 
@@ -914,7 +889,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var missing =
                 _addons.Count(addon =>
                     !addon.IsSourceError &&
-                    !addon.IsInstalled);
+                    !addon.IsInstalled && addon.Definition.Recommended);
 
             var requiredMissing =
                 _addons.Count(addon =>
@@ -948,18 +923,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             else if (sourceErrors > 0)
             {
                 _addonStatus =
-                    $"Realm addons ready; {sourceErrors} personal addon source(s) need attention.";
+                    $"Realm addons ready; {sourceErrors} addon source(s) unavailable; existing installations retained.";
             }
             else if (missing > 0)
             {
                 _addonStatus =
                     $"{installed}/{_addons.Count} managed addons installed; " +
-                    $"{missing} optional/recommended/personal addon(s) missing.";
+                    $"{missing} recommended addon(s) available to install.";
             }
             else
             {
                 _addonStatus =
-                    $"All {_addons.Count} managed addons are current.";
+                    $"Realm addon requirements satisfied; {installed}/{_addons.Count} managed addons installed.";
             }
 
             _addonsLoaded = true;
@@ -984,31 +959,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private static string? FindLocalAddonManifest()
-    {
-        var searchDirectories = new[]
-        {
-            Directory.GetCurrentDirectory(),
-            AppContext.BaseDirectory
-        }
-        .Where(Directory.Exists)
-        .Select(Path.GetFullPath)
-        .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var directory in searchDirectories)
-        {
-            var candidate = Path.Combine(
-                directory,
-                "config",
-                "addons.json");
-
-            if (File.Exists(candidate))
-                return Path.GetFullPath(candidate);
-        }
-
-        return null;
-    }
-
     private void NotifyAddonsChanged()
     {
         OnPropertyChanged(nameof(AddonStatus));
@@ -1026,7 +976,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         if (!RealmConfigured)
         {
-            LaunchStatus = "A realm configuration is required before launch.";
+            LaunchStatus = ConfigurationStatus;
             return;
         }
 
@@ -1050,10 +1000,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         if (!AddonsReady)
         {
-            LaunchStatus = "Required addons must be installed and current before launch.";
+            LaunchStatus = "Required addons need attention: " + string.Join(", ", _addons.Where(a => a.Definition.Required && (!a.IsInstalled || a.IsUpdateAvailable)).Select(a => a.Definition.Name + " (" + a.StatusText + ")"));
             return;
         }
 
+        if (!PatchesReady)
+        {
+            LaunchStatus = "Required patches need attention: " + string.Join(", ", Patches.Where(p => p.Definition.Requirement == ComponentRequirement.Required && !p.IsValid).Select(p => p.Definition.Name + " (" + p.Status + ")"));
+            return;
+        }
         LaunchStatus = "Ready to enter realm.";
     }
 

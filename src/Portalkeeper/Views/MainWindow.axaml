@@ -138,6 +138,9 @@
                                            FontSize="22"
                                            FontWeight="SemiBold"
                                            Foreground="#F8F0DF" />
+                                <TextBlock Text="{Binding RealmDescription}" TextWrapping="Wrap" Foreground="#AFA28D" />
+                                <TextBlock Text="{Binding RealmConnection}" TextWrapping="Wrap" Foreground="#AFA28D" />
+                                <TextBlock Text="{Binding RealmWebsite}" TextWrapping="Wrap" Foreground="#AFA28D" />
                                 <TextBlock Text="{Binding RealmStatus}"
                                            FontSize="13"
                                            Foreground="#AFA28D"
@@ -155,7 +158,6 @@
                                            Foreground="#D8C5EA"
                                            HorizontalAlignment="Center" />
                                 <Button Content="CHECK AGAIN"
-                                        IsVisible="{Binding ShowRealmCheckAgain}"
                                         Click="RealmCheckAgain_Click"
                                         Padding="15,8" />
                             </StackPanel>
@@ -252,6 +254,8 @@
                     </Grid>
                 </Border>
 
+                <TextBlock Text="{Binding ConfigurationStatus}" TextWrapping="Wrap" Foreground="#AFA28D" />
+                <Button Content="MANAGE PATCHES" Click="ManagePatches_Click" IsEnabled="{Binding ClientValid}" Padding="20,10" />
                 <!-- Utility strip -->
                 <Border Background="#0A141E"
                         BorderBrush="#40331E"
@@ -329,7 +333,7 @@
                 BorderThickness="0,1,0,0"
                 Padding="24,10">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="Portalkeeper 0.1.0"
+                <TextBlock Text="{Binding ApplicationVersion}"
                            Foreground="#776E62"
                            VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1"

@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Portalkeeper.ViewModels"
+ xmlns:models="using:Portalkeeper.Models" x:Class="Portalkeeper.Views.ManagePatchesWindow"
+ x:DataType="vm:MainViewModel" Title="Portalkeeper — Realm Patches" Width="820" Height="520"
+ MinWidth="640" MinHeight="360" Background="#091019" WindowStartupLocation="CenterOwner">
+ <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+  <StackPanel Spacing="6">
+   <TextBlock Text="REALM PATCHES" FontSize="24" Foreground="#D5AA50" />
+   <TextBlock Text="Required patches must be valid before launch. Existing files are inspected; changes retain backups."
+    TextWrapping="Wrap" Foreground="#AFA28D" />
+  </StackPanel>
+  <ScrollViewer Grid.Row="1">
+   <ItemsControl ItemsSource="{Binding Patches}">
+    <ItemsControl.ItemTemplate><DataTemplate x:DataType="models:PatchInfo">
+     <Border Margin="0,0,0,12" Padding="16" Background="#0E1823" BorderBrush="#6E5426" BorderThickness="1" CornerRadius="4">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+       <StackPanel Spacing="5">
+        <TextBlock Text="{Binding Definition.Name}" FontSize="18" Foreground="#F8F0DF" />
+        <TextBlock Text="{Binding Definition.Requirement}" Foreground="#D5AA50" />
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="#AFA28D" />
+        <TextBlock Text="{Binding Destination}" TextWrapping="Wrap" Foreground="#AFA28D" FontSize="11" />
+       </StackPanel>
+       <StackPanel Grid.Column="1" Spacing="8">
+        <Button Content="INSTALL / REPAIR" Click="Install_Click" />
+        <Button Content="REMOVE" Click="Remove_Click" IsEnabled="{Binding IsInstalled}" />
+       </StackPanel>
+      </Grid>
+     </Border>
+    </DataTemplate></ItemsControl.ItemTemplate>
+   </ItemsControl>
+  </ScrollViewer>
+  <Button Grid.Row="2" Content="CLOSE" Click="Close_Click" HorizontalAlignment="Right" />
+ </Grid>
+</Window>

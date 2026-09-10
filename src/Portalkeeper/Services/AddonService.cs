@@ -25,11 +25,9 @@ public sealed class AddonService
             if (string.IsNullOrWhiteSpace(addon.Folder))
                 continue;
 
-            var addonDirectory = Path.Combine(
-                addonsDirectory,
-                addon.Folder);
+            var addonDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
 
-            var installed = Directory.Exists(addonDirectory);
+            var installed = Directory.Exists(addonDirectory) && Directory.GetFiles(addonDirectory, "*.toc").Length > 0;
             var state = _installStateService.Load(
                 clientDirectory,
                 addon.Id);

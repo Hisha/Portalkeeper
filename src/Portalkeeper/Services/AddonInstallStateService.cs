@@ -61,11 +61,7 @@ public sealed class AddonInstallStateService
                     ? '_'
                     : character));
 
-        return Path.Combine(
-            clientDirectory,
-            ".portalkeeper",
-            "addons",
-            safeId + ".json");
+        return ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "addons", safeId + ".json"));
     }
 }
 

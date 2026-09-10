@@ -15,6 +15,14 @@ public partial class ManageAddonsWindow : Window
     }
 
 
+    private async void Uninstall_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || sender is not Button { DataContext: AddonInfo addon }) return;
+        if (!await ConfirmRemoval.ShowAsync(this, addon.Definition.Name)) return;
+        try { IsEnabled = false; await vm.RemoveInstalledAddonAsync(addon.Definition.Id); }
+        catch (Exception ex) { IsEnabled = true; await ShowErrorAsync(ex.Message); }
+        finally { IsEnabled = true; }
+    }
     private async void AddAddon_Click(
         object? sender,
         RoutedEventArgs e)

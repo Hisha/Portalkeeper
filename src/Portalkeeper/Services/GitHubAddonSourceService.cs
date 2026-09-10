@@ -17,7 +17,8 @@ namespace Portalkeeper.Services;
 
 public sealed class GitHubAddonSourceService
 {
-    private static readonly HttpClient HttpClient = CreateHttpClient();
+    private static readonly HttpClient SharedHttpClient = CreateHttpClient();
+    private readonly HttpClient HttpClient;
 
     private static readonly JsonSerializerOptions JsonOptions =
         new()
@@ -29,13 +30,14 @@ public sealed class GitHubAddonSourceService
     private readonly string _cachePath;
     private GitHubSourceCache _cache;
 
-    public GitHubAddonSourceService()
+    public GitHubAddonSourceService(HttpClient? httpClient = null, string? cacheDirectory = null)
     {
+        HttpClient = httpClient ?? SharedHttpClient;
         var applicationData =
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
         var portalkeeperDirectory =
-            Path.Combine(applicationData, "Portalkeeper");
+            cacheDirectory ?? Path.Combine(applicationData, "Portalkeeper");
 
         Directory.CreateDirectory(portalkeeperDirectory);
 
@@ -78,7 +80,7 @@ public sealed class GitHubAddonSourceService
                 $"Unsupported GitHub repository URL for {addon.Name}: {addon.GitUrl}");
         }
 
-        var cacheKey = $"{owner}/{repository}";
+        var cacheKey = $"{owner}/{repository}|{addon.Ref}|{addon.AddonPath}|{addon.Folder}";
 
         _cache.Repositories.TryGetValue(
             cacheKey,
@@ -86,25 +88,19 @@ public sealed class GitHubAddonSourceService
 
         try
         {
-            return await ResolveUsingApiAsync(
-                addon,
-                owner,
-                repository,
-                cacheKey,
-                cached);
+            try
+            {
+                return await ResolveUsingApiAsync(addon, owner, repository, cacheKey, cached);
+            }
+            catch (GitHubApiRateLimitException)
+            {
+                return await ResolveWithoutApiAsync(addon, owner, repository, cacheKey, cached);
+            }
         }
-        catch (GitHubApiRateLimitException)
+        catch (Exception ex) when (cached is not null && (ex is HttpRequestException || ex is TaskCanceledException))
         {
-            // GitHub's unauthenticated REST API is intentionally rate limited.
-            // A brand-new Portalkeeper user has no cache yet, so falling back to
-            // Git's public smart-HTTP advertisement plus a codeload archive keeps
-            // first-run addon discovery working without requiring a GitHub token.
-            return await ResolveWithoutApiAsync(
-                addon,
-                owner,
-                repository,
-                cacheKey,
-                cached);
+            return BuildResolvedDefinition(addon, repository, cached.DefaultBranch, cached.Commit,
+                cached.AddonPath, cached.Folder, cached.Version, "Source unavailable; using cached version/commit information.");
         }
     }
 
@@ -115,7 +111,7 @@ public sealed class GitHubAddonSourceService
         string cacheKey,
         GitHubSourceCacheEntry? cached)
     {
-        var defaultBranch = cached?.DefaultBranch ?? string.Empty;
+        var defaultBranch = !string.IsNullOrWhiteSpace(addon.Ref) ? addon.Ref : cached?.DefaultBranch ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(defaultBranch))
         {
@@ -137,7 +133,7 @@ public sealed class GitHubAddonSourceService
             commit = await GetJsonAsync<CommitResponse>(
                 $"https://api.github.com/repos/{owner}/{repository}/commits/{Uri.EscapeDataString(defaultBranch)}");
         }
-        catch (HttpRequestException) when (cached is not null)
+        catch (HttpRequestException) when (cached is not null && string.IsNullOrWhiteSpace(addon.Ref))
         {
             // The cached default branch may have changed. Refresh repository metadata once.
             var repositoryInfo = await GetJsonAsync<RepositoryResponse>(
@@ -222,7 +218,7 @@ public sealed class GitHubAddonSourceService
         string cacheKey,
         GitHubSourceCacheEntry? cached)
     {
-        var head = await GetGitHeadAsync(owner, repository);
+        var head = await GetGitHeadAsync(owner, repository, addon.Ref);
 
         if (cached is not null &&
             cached.Commit.Equals(head.Commit, StringComparison.OrdinalIgnoreCase) &&
@@ -356,7 +352,7 @@ public sealed class GitHubAddonSourceService
 
     private async Task<GitHeadInfo> GetGitHeadAsync(
         string owner,
-        string repository)
+        string repository, string reference)
     {
         var url =
             $"https://github.com/{owner}/{repository}.git/info/refs?service=git-upload-pack";
@@ -373,6 +369,17 @@ public sealed class GitHubAddonSourceService
         var bytes = await response.Content.ReadAsByteArrayAsync();
         var advertisement = Encoding.UTF8.GetString(bytes);
 
+        if (!string.IsNullOrWhiteSpace(reference))
+        {
+            var normalized = reference.StartsWith("refs/", StringComparison.Ordinal) ? reference : "refs/heads/" + reference;
+            var tag = reference.StartsWith("refs/", StringComparison.Ordinal) ? reference : "refs/tags/" + reference;
+            foreach (var candidate in new[] { tag + "^{}", normalized, tag })
+            {
+                var found = Regex.Match(advertisement, @"(?i)([0-9a-f]{40}) " + Regex.Escape(candidate) + @"(?=[\0\s])");
+                if (found.Success) return new GitHeadInfo(reference, found.Groups[1].Value);
+            }
+            throw new InvalidDataException("Configured GitHub Ref was not advertised; refusing to use a different branch.");
+        }
         var commitMatch = Regex.Match(
             advertisement,
             @"(?i)([0-9a-f]{40}) HEAD");
@@ -404,7 +411,8 @@ public sealed class GitHubAddonSourceService
         repository = string.Empty;
 
         if (!Uri.TryCreate(gitUrl, UriKind.Absolute, out var uri) ||
-            !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+            !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
+            (uri.Scheme != "https" && uri.Scheme != "http") || uri.UserInfo.Length != 0 || uri.Query.Length != 0 || uri.Fragment.Length != 0)
         {
             return false;
         }
@@ -413,7 +421,7 @@ public sealed class GitHubAddonSourceService
             .Trim('/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length < 2)
+        if (parts.Length != 2 || parts.Any(p => !Regex.IsMatch(p, @"^[A-Za-z0-9_.-]+$") || p is "." or ".."))
             return false;
 
         owner = parts[0];
@@ -446,7 +454,7 @@ public sealed class GitHubAddonSourceService
         string commit,
         string addonPath,
         string folder,
-        string version)
+        string version, string sourceWarning = "")
     {
         return new AddonDefinition
         {
@@ -456,8 +464,10 @@ public sealed class GitHubAddonSourceService
             Name = string.IsNullOrWhiteSpace(source.Name)
                 ? repository
                 : source.Name,
-            Folder = folder,
+            Folder = string.IsNullOrWhiteSpace(source.Folder) ? folder : source.Folder,
             Version = version,
+            Ref = source.Ref,
+            SourceWarning = sourceWarning,
             Required = source.Required,
             Recommended = source.Recommended,
             GitUrl = source.GitUrl,
@@ -675,7 +685,7 @@ public sealed class GitHubAddonSourceService
     {
         var client = new HttpClient();
         client.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("Portalkeeper", "0.1"));
+            new ProductInfoHeaderValue("Portalkeeper", RealmConfigurationService.CurrentVersion));
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         client.DefaultRequestHeaders.Add(

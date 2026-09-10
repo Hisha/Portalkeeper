@@ -177,6 +177,11 @@ public partial class MainWindow : Window
         await window.ShowDialog(this);
     }
 
+    private async void ManagePatches_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+            await new ManagePatchesWindow { DataContext = vm }.ShowDialog(this);
+    }
     private async void Settings_Click(
         object? sender,
         RoutedEventArgs e)

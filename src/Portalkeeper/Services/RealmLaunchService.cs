@@ -70,7 +70,7 @@ public sealed class RealmLaunchService
             throw new DirectoryNotFoundException(
                 "The configured World of Warcraft client directory no longer exists.");
 
-        var wowExecutable = FindWowExecutable(fullClientDirectory)
+        var wowExecutable = ClientService.FindWowExecutable(fullClientDirectory, realm.Client.Executable)
             ?? throw new FileNotFoundException(
                 "Wow.exe was not found in the configured client directory.");
 

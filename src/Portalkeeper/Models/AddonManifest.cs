@@ -14,6 +14,9 @@ public sealed class AddonManifest
 
 public sealed class AddonDefinition
 {
+    public string Ref { get; init; } = string.Empty;
+    [JsonIgnore]
+    public string SourceWarning { get; init; } = string.Empty;
     [JsonPropertyName("id")]
     public string Id { get; init; } = string.Empty;
 

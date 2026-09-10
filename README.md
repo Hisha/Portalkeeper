@@ -30,11 +30,11 @@ The root [Portalkeeper.slnx](Portalkeeper.slnx) and [application project](src/Po
 ./scripts/publish-linux.sh
 ```
 
-It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.1.0-linux-x64.zip`. This review does not change release versions. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols.
+It requires `dotnet` and `zip` and currently produces `dist/Portalkeeper-0.2.0-linux-x64.zip`. Self-contained .NET does **not** bundle StormLib or guarantee all operating-system GUI/native libraries are installed. The script checks for private realm files and removes development symbols.
 
 ## Windows releases
 
-Two Windows release artifacts are offered, both built from the same project version (currently `0.1.0`). Both bundle the .NET runtime and `StormLib.dll`; no PowerShell launch or install script is required.
+Two Windows release artifacts are offered, both built from the same project version (currently `0.2.0`). Both bundle the .NET runtime and `StormLib.dll`; no PowerShell launch or install script is required.
 
 ### Portable
 
@@ -52,7 +52,7 @@ Run       the installer (per-user, no administrator rights required)
 Launch    Portalkeeper from the Start Menu
 ```
 
-The installer adds a Start Menu shortcut, registers Portalkeeper in Windows *Installed apps*, offers an optional desktop shortcut, and provides a normal uninstall entry. Upgrading is a clean reinstall over the same folder. The installer adds a Start Menu shortcut, registers Portalkeeper in Windows *Installed apps*, offers an optional desktop shortcut, and provides a normal uninstall entry. Upgrading is a clean reinstall over the same folder. User settings and caches in `%APPDATA%\Portalkeeper\` are left untouched by install and uninstall. User-created realm configuration files are also preserved during uninstall. Blizzard/WoW client assets are never distributed. Blizzard/WoW client assets are never distributed.
+The installer retains the stable AppId `{64CF5E71-169A-422C-86D5-AC9A62E0AEEE}`, the existing installation directory, and per-user installation (`PrivilegesRequired=lowest`). Close Portalkeeper and run the newer installer: it replaces binaries in the existing installation without a manual uninstall or duplicate application entry. `%APPDATA%\Portalkeeper` and the selected WoW installation are not installer payload. User-created realm files beside the application remain available for first-launch import. See [upgrade instructions](docs/schema-v1-upgrade.md).
 
 ### Maintainers: creating the release artifacts
 
@@ -76,51 +76,51 @@ The portable ZIP alone is `pwsh scripts/publish-win.ps1` (or `scripts/build-win-
 
 Select the local folder containing `Wow.exe` and `Data` in Settings, for example `/path/to/WoW-335a` or `C:\Games\WoW-335a`. Executable validation checks supported metadata/build markers; it does not validate every archive. Linux launching requires `wine` or `wine64` on PATH. The launcher honors `WINEPREFIX`, otherwise tries matching desktop-launcher prefix information and then Wine's default prefix. Settings shows the detected launch environment.
 
-Copy [config/example.realm.conf](config/example.realm.conf) to `config/my-realm.realm.conf` beside the executable (or in the source working directory during development):
+Portalkeeper 0.2.0 consumes **SchemaVersion=1**, generated and published by the server's **mod-realm-config** module. Portalkeeper has no database connection. Obtain the realm's public file from its administrator; [config/example.realm.conf](config/example.realm.conf) shows the complete contract.
 
-```ini
-[Server]
-Name=Example Realm
-Address=realm.example.com
-AuthPort=3724
-WorldPort=8085
+Place one non-example `*.realm.conf` in the persistent `Portalkeeper/realms` directory (Windows `%APPDATA%\Portalkeeper\realms`; Linux `$XDG_CONFIG_HOME/Portalkeeper/realms`, normally `~/.config/Portalkeeper/realms`). On first use, the launcher also discovers files beside the executable or in its `config/` folder and the working directory. It copies a single file to persistent storage and retains the original. Multiple candidates require the user to select one by keeping just the desired file in the persistent directory.
 
-[Updates]
-ManifestURL=
-NewsURL=
-StatusURL=
-CalendarURL=
-ArmoryURL=https://realm.example.com/armory/index.json
-```
+`[Realm]` supplies name, description and website; `[Connection] Address` supplies `set realmlist <Address>`. `[Client]` supplies version, build, executable name and optional SHA-256, preserving existing executable metadata/build-marker validation. `[Portalkeeper] MinimumVersion` uses semantic version comparison and gives an upgrade message if incompatible.
 
-`Name` and `Address` are required; ports default to 3724 and 8085. Keep exactly one non-example `*.realm.conf`: discovery searches the working directory, executable directory and each one's `config/` child. The example is ignored; multiple files disable realm selection rather than providing a realm picker. Use **CHECK AGAIN** after correcting configuration. Private realm files are not copied by the project automatically; install your configuration separately.
+`[Services]` supplies `NewsURL`, `CalendarURL`, `ArmoryURL`, `StatusURL`, `ManifestURL` and canonical `ConfigURL`. Empty optional URLs disable the corresponding feature. News, Calendar and Armory retain their existing viewers. `StatusURL` and `ManifestURL` are exposed by the model for discovery; the current application uses TCP health probes and the INI addon/patch catalog, not a second manifest. Neither optional endpoint is required to launch.
 
-All feed URLs are optional. `ManifestURL` overrides local `config/addons.json`. `NewsURL`, `CalendarURL` and `ArmoryURL` enable their corresponding views. **`StatusURL` is parsed but not consumed**; current health status comes from TCP probes, not an HTTP status feed. Keep private values out of public source/packages.
+Startup and **CHECK AGAIN** refresh from `ConfigURL`. Downloads must pass all Schema v1 checks, including minimum application version and component definitions, before atomic replacement. Failed refreshes keep the last known-good configuration usable. Experimental `[Server]`/`[Updates]` files are detected as legacy; their `UpdateURL` is used only to bootstrap a validated v1 file. Failed migration retains the original and displays instructions; it never silently treats legacy data as v1. Successful replacement keeps a unique backup. See [migration and upgrades](docs/schema-v1-upgrade.md).
 
 ## Optional integrations and dependencies
 
 | Feature | Required for that feature | Optional / fallback |
 |---|---|---|
 | Launcher | Local supported client; configured realm; Wine on Linux | TCP health is advisory. |
-| Addon installation | Writable client addon directory and reachable source | Local or remote manifest; personal GitHub sources. |
+| Addon installation | Writable client addon directory and reachable source | Schema v1 catalog; personal GitHub sources. |
 | News/calendar | HTTP(S) schema-v1 feeds from mod-realm-news/mod-realm-calendar | Last cached feed on failure. No server database access. |
 | Armory equipment | HTTP(S) schema-v1 mod-realm-armory feed | Cached roster/profiles; icons may be unavailable. |
 | Static previews | Local compatible client MPQs and native StormLib matching process architecture | Missing assets/library keep equipment UI and an explanatory placeholder. |
 | Transmog previews | Explicit capability in both roster and profile, resolved appearance metadata | Older/unsupported feeds show original equipment. No mandatory mod-transmog dependency. |
 
-Linux preview loading tries `libstorm.so` then `libstorm.so.9`; Windows tries `StormLib.dll`. Install the native library and its transitive dependencies where the operating-system loader can find them. No StormLib binary is supplied by the project or Linux packaging script. A macOS library name exists in the resolver, but macOS runtime/launch support is not validated.
+Linux preview loading tries `libstorm.so` then `libstorm.so.9`; Windows tries `StormLib.dll`. Install the native library and its transitive dependencies where the operating-system loader can find them. The Windows project and Linux publishing script bundle their respective StormLib binaries. A macOS library name exists in the resolver, but macOS runtime/launch support is not validated.
 
 ## Addon management
 
-[config/addons.json](config/addons.json) uses `manifestVersion: 1` and an `addons` array. A generic GitHub entry is:
+Realm addons are discovered dynamically from all `[Addon.<key>]` sections. There may be zero, one or many; the historical `config/addons.json` is no longer authoritative or shipped in releases. Required addons must exist with a `.toc` and have no known supported version/commit update before **ENTER REALM**. Recommended and Optional addons do not block launch; an absent Optional addon does not create a readiness warning.
 
-```json
-{"id":"example-addon","name":"ExampleAddon","required":false,"recommended":true,"gitUrl":"https://github.com/owner/repository"}
+GitHub sources reuse existing commit discovery and ZIP installation. `Ref` selects a branch or tag (including a release's tag); empty means the default branch. HTTP sources supply a ZIP containing the configured addon folder and a `.toc`. Schema v1 does not supply an addon hash; HTTP archives still undergo path, size, link and `.toc` validation. HTTPS is preferred; intentional HTTP remains supported. Downloaded scripts/executables are never executed by the installer.
+
+`InstallDirectory` identifies a folder under `<client>/Interface/AddOns`. Existing installations are recognized through folder/TOC inspection and existing version/commit records. Upgrading Portalkeeper does not reinstall addons. Source failures retain local inspection and report unavailable update information. INSTALL/UPDATE and UPDATE ALL are explicit actions. UNINSTALL moves only the selected folder to a recoverable backup; REMOVE on personal entries only removes management. Components absent from the current realm catalog are never automatically deleted.
+
+## Realm patches
+
+All `[Patch.<key>]` entries appear in **MANAGE PATCHES**, showing name, requirement, destination and validation state. HTTP(S) sources install to `<client>/<InstallDirectory>/<FileName>`. Required patches block launch when missing or hash-invalid. Recommended and Optional patches do not. SHA-256 is checked when supplied; without it, existence is the supported check and the UI states that no hash was supplied.
+
+INSTALL / REPAIR stages a download beside the destination, validates it, backs up any existing file and replaces it only after success. Valid existing hashed patches are not downloaded again. Explicit action can refresh hashless patches. REMOVE requires confirmation and backs up the selected file. No directory-wide pruning occurs. Paths reject roots, traversal, unsafe Windows filenames and symbolic links/junctions; management metadata cannot be targeted.
+
+## Regression checks
+
+```sh
+dotnet run --project tests/Portalkeeper.Tests -c Release
+bash tests/install-linux-upgrade.sh
 ```
 
-GitHub discovery resolves the default branch, commit, addon directory, `.toc` and version where available. `addonPath` disambiguates repositories; `folder` and `version` are available overrides. Direct ZIP sources use `downloadUrl` and `sha256` with folder metadata. See [AddonManifest.cs](src/Portalkeeper/Models/AddonManifest.cs) for exact fields. Downloads are staged; replacement folders are backed up under `<client>/.portalkeeper/backups/`.
-
-Required addons gate **ENTER REALM** until readiness checks pass. Recommended/personal addons do not. Source errors and known version/commit changes are displayed in addon management. Personal sources can be added or removed from management; realm policy wins if it adopts the same addon. Removing a personal management entry is not an instruction to erase its game data.
+The dependency-free test executable covers parsing, migration/refresh rollback, semantic versions, path safety, client validation, preserved settings/addons, and real loopback HTTP addon/patch downloads. The shell test runs the Linux installer twice against an isolated fake package and verifies preservation. See [verification](docs/schema-v1-upgrade.md#verification).
 
 ## News, calendar and Armory
 

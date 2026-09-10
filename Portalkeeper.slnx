@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Portalkeeper/Portalkeeper.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Portalkeeper.Tests/Portalkeeper.Tests.csproj" />
+  </Folder>
 </Solution>

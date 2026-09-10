@@ -6,6 +6,7 @@ Start with the [README](../README.md) for exact realm keys, dependencies and lau
 
 The base is `<ApplicationData>/Portalkeeper`, using .NET's operating-system `ApplicationData` location (normally `%APPDATA%` on Windows and the user's config directory on Linux).
 
+- `realms/`: persistent selected realm configuration. First-run imports preserve the original application-adjacent file. `realms/.portalkeeper/backups/` retains unique pre-refresh/pre-migration copies.
 - `settings.json`: `ClientPath`, `HidePortalkeeperWhileGameRuns`, and `ShowTransmogrifiedAppearancesByRealm`. The latter is keyed by the literal Armory URL and defaults true for an absent key; capability still gates rendering.
 - `armory-cache/realms/<URL-SHA256>/`: `index.json` and `character-<id>.json`. Old unscoped Armory caches are not reused. Changing URL spelling creates a new scope.
 - `armory-cache/icons/`: shared cached icon JPEGs, fetched by icon name from the external icon service.
@@ -20,10 +21,10 @@ Preview decoding/rendering runs off the UI thread with serialized rendering and 
 
 | Symptom | Check |
 |---|---|
-| No realm / multiple realm configurations | Keep exactly one non-example realm file across working/executable directories and their `config/` children; verify `[Server]` Name/Address, then CHECK AGAIN. |
+| No realm / multiple realm configurations | Keep exactly one non-example realm file in persistent `Portalkeeper/realms`; verify SchemaVersion=1 and required fields, then CHECK AGAIN. Legacy files use UpdateURL only for bootstrap. |
 | Client rejected | Choose the folder containing the supported Windows executable, not `Data`; validation must find build 12340 metadata/markers. |
-| Cannot launch | Check client write permissions, locale/realmlist discovery, required-addon readiness, and Wine/PATH/prefix on Linux. Health probes are advisory. |
-| Addon source error | Check repository URL, source availability/rate limits, `.toc` and ambiguous addon directories; direct downloads require the configured SHA-256. |
+| Cannot launch | Check client write permissions, locale/realmlist discovery, required-addon and required-patch readiness, and Wine/PATH/prefix on Linux. Health probes are advisory. |
+| Addon source error | Check repository URL, source availability/rate limits, `.toc` and ambiguous addon directories; HTTP ZIPs require a safe configured folder and a .toc. |
 | Feed unavailable | Check HTTP URL, schema version 1 and server publishing/hosting separately. Cached data may be older; read the displayed status/timestamp. |
 | Roster works, profile fails | `characters/<id>.json` must resolve relative to the index URL; check publication completeness and web permissions. |
 | Preview placeholder | Read its status; verify native StormLib architecture/dependencies, client `Data`/locale MPQs, required DBC/model/texture availability and supported archive layout. Slots/tooltips remain available. |
