@@ -1,0 +1,68 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y
+
+      - name: Build Windows release packages
+        shell: pwsh
+        run: ./scripts/publish-win.ps1 -Installer
+
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Portalkeeper-Windows
+          path: |
+            dist/Portalkeeper-*-win-x64.zip
+            dist/Portalkeeper-Setup-*.exe
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            zip \
+            libstorm9 \
+            zlib1g \
+            libbz2-1.0 \
+            libtomcrypt1 \
+            libtommath1 \
+            libgmp10
+
+      - name: Build Linux release package
+        run: bash ./scripts/publish-linux.sh
+
+      - name: Upload Linux release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Portalkeeper-Linux
+          path: dist/Portalkeeper-*-linux-x64.zip
+          if-no-files-found: error
