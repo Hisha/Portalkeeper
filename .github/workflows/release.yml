@@ -58,7 +58,17 @@ jobs:
             libgmp10
 
       - name: Build Linux release package
-        run: bash ./scripts/publish-linux.sh
+        run: |
+          STORMLIB_PATH="$(find /usr/lib -type f -name 'libstorm.so*' 2>/dev/null | head -n 1)"
+
+          if [ -z "$STORMLIB_PATH" ]; then
+            echo "ERROR: Could not locate installed StormLib."
+            dpkg -L libstorm9 || true
+            exit 1
+          fi
+
+          echo "Using StormLib: $STORMLIB_PATH"
+          STORMLIB_PATH="$STORMLIB_PATH" bash ./scripts/publish-linux.sh
 
       - name: Upload Linux release artifact
         uses: actions/upload-artifact@v4
