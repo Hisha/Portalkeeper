@@ -1,0 +1,38 @@
+name: Build Windows Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y
+
+      - name: Build Windows release packages
+        shell: pwsh
+        run: ./scripts/publish-win.ps1 -Installer
+
+      - name: Show generated release files
+        shell: pwsh
+        run: Get-ChildItem dist
+
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Portalkeeper-Windows
+          path: |
+            dist/Portalkeeper-*-win-x64.zip
+            dist/Portalkeeper-Setup-*.exe
+          if-no-files-found: error
