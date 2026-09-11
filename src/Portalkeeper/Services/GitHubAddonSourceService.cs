@@ -506,18 +506,41 @@ public sealed class GitHubAddonSourceService
                 "No World of Warcraft .toc file was found in the GitHub repository.");
         }
 
-        if (tocFiles.Length == 1)
-            return tocFiles[0];
+        // Special handling for multi-addon repositories - find a valid metadata TOC when needed
+        // but allow multiple addon directories to proceed
+        if (tocFiles.Length > 1)
+        {
+            // Embedded libraries frequently ship their own .toc files. If the repository
+            // also contains normal addon candidates, do not let those library metadata
+            // files make discovery look ambiguous.
+            var nonLibraryTocs = tocFiles
+                .Where(path => !IsEmbeddedLibraryToc(path))
+                .ToArray();
 
-        // Embedded libraries frequently ship their own .toc files. If the repository
-        // also contains normal addon candidates, do not let those library metadata
-        // files make discovery look ambiguous.
-        var nonLibraryTocs = tocFiles
-            .Where(path => !IsEmbeddedLibraryToc(path))
-            .ToArray();
+            if (nonLibraryTocs.Length > 0)
+                tocFiles = nonLibraryTocs;
 
-        if (nonLibraryTocs.Length > 0)
-            tocFiles = nonLibraryTocs;
+            // If we have multiple valid addon directories and the addonPathOverride is set, 
+            // try to determine an appropriate metadata TOC
+            if (!string.IsNullOrWhiteSpace(addonPathOverride))
+            {
+                var addonPathNormalized = NormalizeAddonPath(addonPathOverride);
+                
+                // Prefer a TOC that's inside the specified folder path if available
+                foreach (var toc in tocFiles)
+                {
+                    if (IsUnderPath(toc, addonPathNormalized) &&
+                        !string.IsNullOrWhiteSpace(GetDirectoryPart(toc)))
+                    {
+                        return toc;
+                    }
+                }
+            }
+            
+            // If there are still multiple TOCs remaining, we must select one for version 
+            // metadata while letting all be installed by installer.
+            // Select based on: 1) repository root level TOC, 2) name match with repository
+        }
 
         if (tocFiles.Length == 1)
             return tocFiles[0];
@@ -552,13 +575,24 @@ public sealed class GitHubAddonSourceService
         if (folderMatches.Length == 1)
             return folderMatches[0];
 
-        var choices = string.Join(", ", tocFiles.Take(6));
-        if (tocFiles.Length > 6)
-            choices += ", ...";
+        // If we have multiple TOCs remaining after all attempts, try to pick one
+        // For multi-addon repositories, we want to keep the behavior consistent with 
+        // how installation works - but we still need a valid metadata TOC for version display.
+        var candidateTocs = tocFiles;
+        
+        // Prefer root level .toc files first
+        var rootLevelToc = candidateTocs.FirstOrDefault(path => !path.Contains('/'));
+        if (rootLevelToc != null)
+            return rootLevelToc;
 
-        throw new InvalidDataException(
-            $"Multiple addon .toc files were found ({choices}). " +
-            "Set addonPath in the manifest to identify the addon directory.");
+        // Then prefer the repository name matched TOC
+        var repoNameMatch = candidateTocs.FirstOrDefault(path => 
+            Path.GetFileName(path).Equals(repositoryTocName, StringComparison.OrdinalIgnoreCase));
+        if (repoNameMatch != null)
+            return repoNameMatch;
+
+        // If nothing else works, pick the first one to prevent a breaking change
+        return candidateTocs[0];
     }
 
     private static bool IsEmbeddedLibraryToc(string path)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Portalkeeper.Models;
 
 namespace Portalkeeper.Services;
@@ -58,25 +59,21 @@ public sealed class AddonInstallerService
             Directory.CreateDirectory(extractDirectory);
             ExtractZipSafely(archivePath, extractDirectory);
 
-            var sourceDirectory = addon.IsGitHubSource
-                ? FindGitHubAddonDirectory(extractDirectory, addon)
-                : FindAddonDirectory(extractDirectory, addon.Folder);
-
-            if (sourceDirectory is null)
+            var sourceDirectories = FindAllAddonDirectories(extractDirectory);
+            
+            if (sourceDirectories is null || sourceDirectories.Count == 0)
             {
                 throw new InvalidDataException(
-                    $"The archive does not contain the expected addon '{addon.Folder}'.");
+                    $"The archive does not contain any valid addon directories.");
             }
 
-            var tocFiles = Directory.GetFiles(
-                sourceDirectory,
-                "*.toc",
-                SearchOption.TopDirectoryOnly);
+            // Validate that at least one directory has a .toc file directly in it
+            var tocFiles = sourceDirectories.SelectMany(dir => Directory.GetFiles(dir, "*.toc", SearchOption.TopDirectoryOnly)).ToArray();
 
             if (tocFiles.Length == 0)
             {
                 throw new InvalidDataException(
-                    $"The expected addon folder '{addon.Folder}' does not contain a .toc file.");
+                    $"The archive does not contain any valid addon directories.");
             }
 
             var archiveVersion = TryReadTocVersion(tocFiles);
@@ -90,32 +87,62 @@ public sealed class AddonInstallerService
                     $"Downloaded addon version '{archiveVersion}' does not match the discovered version '{addon.Version}'.");
             }
 
-            var preparedDirectory = Path.Combine(
-                workDirectory,
-                "prepared",
-                addon.Folder);
+            var preparedDirectories = new List<string>();
+            foreach (var sourceDir in sourceDirectories)
+            {
+                var preparedDirectory = Path.Combine(
+                    workDirectory,
+                    "prepared",
+                    Path.GetFileName(sourceDir));
 
-            CopyDirectory(sourceDirectory, preparedDirectory);
+                CopyDirectory(sourceDir, preparedDirectory);
+                preparedDirectories.Add(preparedDirectory);
+            }
 
-            var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
+            var destinationDirectories = new List<string>();
+            foreach (var sourceDir in sourceDirectories)
+            {
+                var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", Path.GetFileName(sourceDir)));
+                destinationDirectories.Add(destinationDirectory);
+            }
 
-            var backupDirectory = CreateBackupPath(
-                clientDirectory,
-                addon);
+            var backupDirectories = new List<string>();
+            var hadExistingInstall = false;
+            foreach (var destDir in destinationDirectories)
+            {
+                if (Directory.Exists(destDir))
+                {
+                    hadExistingInstall = true;
+                    break;
+                }
+            }
 
-            var hadExistingInstall = Directory.Exists(destinationDirectory);
             var backupCreated = false;
 
             try
             {
                 if (hadExistingInstall)
                 {
-                    Directory.CreateDirectory(
-                        Path.GetDirectoryName(backupDirectory)!);
+                    for (int i = 0; i < destinationDirectories.Count; i++)
+                    {
+                        var destDir = destinationDirectories[i];
+                        if (Directory.Exists(destDir))
+                        {
+                            var backupDirectory = CreateBackupPath(
+                                clientDirectory,
+                                addon,
+                                Path.GetFileName(destDir));
 
-                    Directory.Move(
-                        destinationDirectory,
-                        backupDirectory);
+                            Directory.CreateDirectory(
+                                Path.GetDirectoryName(backupDirectory)!);
+
+                            Directory.Move(
+                                destDir,
+                                backupDirectory);
+
+                            backupDirectories.Add(backupDirectory);
+                        }
+                    }
 
                     backupCreated = true;
                 }
@@ -125,25 +152,51 @@ public sealed class AddonInstallerService
                 // cannot cross filesystem boundaries on Unix, so copy the prepared
                 // addon into place instead. The existing install has already been
                 // moved to a backup on the client filesystem, so rollback remains safe.
-                CopyDirectory(
-                    preparedDirectory,
-                    destinationDirectory);
+                
+                for (int i = 0; i < preparedDirectories.Count; i++)
+                {
+                    var preparedDir = preparedDirectories[i];
+                    var destDir = destinationDirectories[i];
+                    
+                    CopyDirectory(
+                        preparedDir,
+                        destDir);
+                }
 
+                // Save installation state with all installed folder names (all addon components found)
+                var allInstalledFolders = sourceDirectories.Select(d => Path.GetFileName(d)).ToList();
                 _installStateService.Save(
                     clientDirectory,
                     addon.Id,
                     string.IsNullOrWhiteSpace(archiveVersion)
                         ? addon.Version
                         : archiveVersion,
-                    addon.SourceCommit);
+                    addon.SourceCommit,
+                    allInstalledFolders);
             }
             catch
             {
-                if (Directory.Exists(destinationDirectory))
-                    Directory.Delete(destinationDirectory, true);
+                // Clean up any installed directories if there's a partial install
+                for (int i = 0; i < destinationDirectories.Count; i++)
+                {
+                    var destDir = destinationDirectories[i];
+                    if (Directory.Exists(destDir))
+                        Directory.Delete(destDir, true);
+                }
 
-                if (backupCreated && Directory.Exists(backupDirectory))
-                    Directory.Move(backupDirectory, destinationDirectory);
+                if (backupCreated)
+                {
+                    // Restore all backed up directories
+                    foreach (var backupDir in backupDirectories)
+                    {
+                        if (Directory.Exists(backupDir))
+                        {
+                            var restoreDest = backupDir.Substring(0, backupDir.LastIndexOf(Path.DirectorySeparatorChar));
+                            Directory.CreateDirectory(Path.GetDirectoryName(restoreDest)!);
+                            Directory.Move(backupDir, restoreDest);
+                        }
+                    }
+                }
 
                 throw;
             }
@@ -166,11 +219,32 @@ public sealed class AddonInstallerService
     {
         ManagedPath.Relative(addon.Id, true);
         ManagedPath.Relative(addon.Folder, true);
-        var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
-        if (!Directory.Exists(destination)) return;
-        var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), addon.Folder));
-        Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
-        Directory.Move(destination, backup);
+        
+        // Load install state to see all installed folders for this addon
+        var state = _installStateService.Load(clientDirectory, addon.Id);
+        
+        // If we have InstalledFolders saved (new style), remove all of them
+        if (state.InstalledFolders != null && state.InstalledFolders.Count > 0)
+        {
+            foreach (var folderName in state.InstalledFolders)
+            {
+                var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", folderName));
+                if (!Directory.Exists(destination)) continue;
+                
+                var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), folderName));
+                Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+                Directory.Move(destination, backup);
+            }
+        }
+        else
+        {
+            // Fallback to original single-folder behavior for backward compatibility
+            var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
+            if (!Directory.Exists(destination)) return;
+            var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), addon.Folder));
+            Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+            Directory.Move(destination, backup);
+        }
     }
     private static void ValidateDefinition(AddonDefinition addon)
     {
@@ -310,40 +384,65 @@ public sealed class AddonInstallerService
         }
     }
 
-    private static string? FindGitHubAddonDirectory(
-        string extractDirectory,
-        AddonDefinition addon)
+    private static List<string> FindAllAddonDirectories(
+        string extractDirectory)
     {
-        var topLevelDirectories = Directory.GetDirectories(extractDirectory);
-        if (topLevelDirectories.Length != 1)
-            return null;
-
-        var repositoryRoot = topLevelDirectories[0];
-
-        var sourceDirectory = string.IsNullOrWhiteSpace(addon.AddonPath)
-            ? repositoryRoot
-            : Path.Combine(
-                repositoryRoot,
-                addon.AddonPath.Replace('/', Path.DirectorySeparatorChar));
-
-        if (!Directory.Exists(sourceDirectory))
-            return null;
-
-        return Directory.GetFiles(
-            sourceDirectory,
-            "*.toc",
-            SearchOption.TopDirectoryOnly).Length > 0
-                ? sourceDirectory
-                : null;
+        var addonDirectories = new List<string>();
+        
+        // Look at the root of the extracted directory and find all directories containing .toc files
+        var topLevelDirs = Directory.GetDirectories(extractDirectory);
+        
+        foreach (var dir in topLevelDirs)
+        {
+            // For GitHub archives, check if this directory is a wrapper directory that contains 
+            // another level with addon directories. The GitHub codeload ZIP extracts with:
+            //    extracted/
+            //        RepoName-<commit>/
+            //            Addon1/
+            //                Addon1.toc
+            //            Addon2/  
+            //                Addon2.toc
+            // We want to check if the immediate children contain addon directories.
+            var isGitHubArchive = topLevelDirs.Length == 1 && 
+                                  topLevelDirs[0].Contains("-") && // Simple heuristic for GitHub archive format
+                                  !Path.GetFileName(topLevelDirs[0]).Contains("."); // Not a directory starting with dot (e.g., ".git")
+            
+            List<string> candidateDirectories;
+            
+            if (isGitHubArchive)
+            {
+                // Check the subdirectories of the single wrapper directory  
+                var subDir = topLevelDirs[0];
+                var subDirectories = Directory.GetDirectories(subDir);
+                candidateDirectories = subDirectories.ToList();
+            }
+            else
+            {
+                candidateDirectories = new List<string> { dir };
+            }
+            
+            foreach (var candidateDir in candidateDirectories)
+            {
+                // Check if this directory contains at least one .toc file directly in it (not recursively)
+                var tocFiles = Directory.GetFiles(candidateDir, "*.toc", SearchOption.TopDirectoryOnly);
+                
+                if (tocFiles.Length > 0)
+                {
+                    addonDirectories.Add(candidateDir);
+                }
+            }
+        }
+        
+        return addonDirectories;
     }
 
-    private static string? FindAddonDirectory(
+    private static List<string> FindAddonDirectories(
         string extractDirectory,
         string expectedFolder)
     {
         var direct = Path.Combine(extractDirectory, expectedFolder);
         if (Directory.Exists(direct))
-            return direct;
+            return new List<string> { direct };
 
         var matches = Directory
             .EnumerateDirectories(
@@ -357,9 +456,10 @@ public sealed class AddonInstallerService
             .Take(2)
             .ToArray();
 
-        return matches.Length == 1
-            ? matches[0]
-            : null;
+        if (matches.Length == 1)
+            return new List<string> { matches[0] };
+            
+        return new List<string>();
     }
 
     private static string TryReadTocVersion(
@@ -387,11 +487,12 @@ public sealed class AddonInstallerService
 
     private static string CreateBackupPath(
         string clientDirectory,
-        AddonDefinition addon)
+        AddonDefinition addon,
+        string directoryName)
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff");
 
-        return ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, timestamp + "-" + Guid.NewGuid().ToString("N"), addon.Folder));
+        return ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, timestamp + "-" + Guid.NewGuid().ToString("N"), directoryName));
     }
 
     private static void CopyDirectory(

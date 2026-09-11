@@ -25,6 +25,8 @@ public sealed class AddonService
             if (string.IsNullOrWhiteSpace(addon.Folder))
                 continue;
 
+            // Use the first found addon directory for display information, but 
+            // note that this may be from any component of a multi-component addon
             var addonDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
 
             var installed = Directory.Exists(addonDirectory) && Directory.GetFiles(addonDirectory, "*.toc").Length > 0;
