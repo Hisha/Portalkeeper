@@ -388,51 +388,23 @@ public sealed class AddonInstallerService
         string extractDirectory)
     {
         var addonDirectories = new List<string>();
-        
-        // Look at the root of the extracted directory and find all directories containing .toc files
-        var topLevelDirs = Directory.GetDirectories(extractDirectory);
-        
-        foreach (var dir in topLevelDirs)
+        var pendingDirectories = new Queue<string>(Directory.GetDirectories(extractDirectory));
+
+        while (pendingDirectories.Count > 0)
         {
-            // For GitHub archives, check if this directory is a wrapper directory that contains 
-            // another level with addon directories. The GitHub codeload ZIP extracts with:
-            //    extracted/
-            //        RepoName-<commit>/
-            //            Addon1/
-            //                Addon1.toc
-            //            Addon2/  
-            //                Addon2.toc
-            // We want to check if the immediate children contain addon directories.
-            var isGitHubArchive = topLevelDirs.Length == 1 && 
-                                  topLevelDirs[0].Contains("-") && // Simple heuristic for GitHub archive format
-                                  !Path.GetFileName(topLevelDirs[0]).Contains("."); // Not a directory starting with dot (e.g., ".git")
-            
-            List<string> candidateDirectories;
-            
-            if (isGitHubArchive)
+            var directory = pendingDirectories.Dequeue();
+            if (Directory.EnumerateFiles(directory, "*.toc", SearchOption.TopDirectoryOnly).Any())
             {
-                // Check the subdirectories of the single wrapper directory  
-                var subDir = topLevelDirs[0];
-                var subDirectories = Directory.GetDirectories(subDir);
-                candidateDirectories = subDirectories.ToList();
+                addonDirectories.Add(directory);
+                // Embedded libraries belong to this addon, not separate installations.
+                continue;
             }
-            else
-            {
-                candidateDirectories = new List<string> { dir };
-            }
-            
-            foreach (var candidateDir in candidateDirectories)
-            {
-                // Check if this directory contains at least one .toc file directly in it (not recursively)
-                var tocFiles = Directory.GetFiles(candidateDir, "*.toc", SearchOption.TopDirectoryOnly);
-                
-                if (tocFiles.Length > 0)
-                {
-                    addonDirectories.Add(candidateDir);
-                }
-            }
+
+            // A directory without a direct .toc is a wrapper, regardless of its name.
+            foreach (var child in Directory.EnumerateDirectories(directory))
+                pendingDirectories.Enqueue(child);
         }
-        
+
         return addonDirectories;
     }
 
