@@ -87,22 +87,29 @@ public sealed class AddonInstallerService
                     $"Downloaded addon version '{archiveVersion}' does not match the discovered version '{addon.Version}'.");
             }
 
+            var installedFolders = sourceDirectories
+                .Select(directory => GetAddonFolderName(directory, addon))
+                .ToList();
+            if (installedFolders.Distinct(StringComparer.OrdinalIgnoreCase).Count() != installedFolders.Count)
+                throw new InvalidDataException("Multiple addon roots resolve to the same addon folder.");
+
             var preparedDirectories = new List<string>();
-            foreach (var sourceDir in sourceDirectories)
+            for (var i = 0; i < sourceDirectories.Count; i++)
             {
+                var sourceDir = sourceDirectories[i];
                 var preparedDirectory = Path.Combine(
                     workDirectory,
                     "prepared",
-                    Path.GetFileName(sourceDir));
+                    installedFolders[i]);
 
                 CopyDirectory(sourceDir, preparedDirectory);
                 preparedDirectories.Add(preparedDirectory);
             }
 
             var destinationDirectories = new List<string>();
-            foreach (var sourceDir in sourceDirectories)
+            foreach (var folder in installedFolders)
             {
-                var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", Path.GetFileName(sourceDir)));
+                var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", folder));
                 destinationDirectories.Add(destinationDirectory);
             }
 
@@ -164,7 +171,6 @@ public sealed class AddonInstallerService
                 }
 
                 // Save installation state with all installed folder names (all addon components found)
-                var allInstalledFolders = sourceDirectories.Select(d => Path.GetFileName(d)).ToList();
                 _installStateService.Save(
                     clientDirectory,
                     addon.Id,
@@ -172,7 +178,7 @@ public sealed class AddonInstallerService
                         ? addon.Version
                         : archiveVersion,
                     addon.SourceCommit,
-                    allInstalledFolders);
+                    installedFolders);
             }
             catch
             {
@@ -382,6 +388,20 @@ public sealed class AddonInstallerService
 
             entry.ExtractToFile(destinationPath, true);
         }
+    }
+
+    private static string GetAddonFolderName(string sourceDirectory, AddonDefinition addon)
+    {
+        var tocFiles = Directory.GetFiles(sourceDirectory, "*.toc", SearchOption.TopDirectoryOnly);
+        // Prefer resolved addon metadata, then the discovered component's matching TOC.
+        // As in source discovery, use the first TOC if neither name matches.
+        var primaryToc = tocFiles.FirstOrDefault(path =>
+                Path.GetFileNameWithoutExtension(path).Equals(addon.Folder, StringComparison.OrdinalIgnoreCase))
+            ?? tocFiles.FirstOrDefault(path =>
+                Path.GetFileNameWithoutExtension(path).Equals(Path.GetFileName(sourceDirectory), StringComparison.OrdinalIgnoreCase))
+            ?? tocFiles.First();
+
+        return ManagedPath.Relative(Path.GetFileNameWithoutExtension(primaryToc), true);
     }
 
     private static List<string> FindAllAddonDirectories(
