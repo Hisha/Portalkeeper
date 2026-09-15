@@ -81,7 +81,15 @@ public sealed class RealmConfigurationService
             var source = Get(section, "SourceType", true);
             var url = ManagedPath.Url(Get(section, "SourceURL", true));
             var name = Get(section, "Name", true);
-            var directory = ManagedPath.Relative(Get(section, "InstallDirectory", true), addon);
+            var modeText = addon ? "File" : Get(section, "InstallMode");
+            if (modeText.Length == 0 && !ini[section].ContainsKey("InstallMode")) modeText = "File";
+            if (!Enum.TryParse<PatchInstallMode>(modeText, true, out var mode) ||
+                !Enum.GetNames<PatchInstallMode>().Any(n => n.Equals(modeText, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"Invalid InstallMode in [{section}]; use File or WowPatch.");
+            if (mode == PatchInstallMode.WowPatch &&
+                (ini[section].ContainsKey("FileName") || ini[section].ContainsKey("InstallDirectory")))
+                throw new InvalidDataException($"[{section}] WowPatch must omit FileName and InstallDirectory; Portalkeeper allocates the destination.");
+            var directory = mode == PatchInstallMode.WowPatch ? "" : ManagedPath.Relative(Get(section, "InstallDirectory", true), addon);
             if (addon)
             {
                 if (source != "GitHub" && source != "HTTP") throw new InvalidDataException($"Unsupported addon SourceType: {source}");
@@ -97,12 +105,12 @@ public sealed class RealmConfigurationService
             else
             {
                 if (source != "HTTP") throw new InvalidDataException($"Unsupported patch SourceType: {source}; use HTTP.");
-                var file = ManagedPath.Relative(Get(section, "FileName", true), true);
+                var file = mode == PatchInstallMode.WowPatch ? "" : ManagedPath.Relative(Get(section, "FileName", true), true);
                 if (directory.Split(Path.DirectorySeparatorChar)[0].Equals(".portalkeeper", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Patches cannot replace Portalkeeper management metadata.");
-                if (!destinations.Add(directory + "/" + file)) throw new InvalidDataException("Duplicate patch destination.");
+                if (mode == PatchInstallMode.File && !destinations.Add(directory + "/" + file)) throw new InvalidDataException("Duplicate patch destination.");
                 patches.Add(new PatchDefinition { Id = key, Name = name, Requirement = requirement, SourceUrl = url,
-                    InstallDirectory = directory, FileName = file, Sha256 = ManagedPath.Hash(Get(section, "SHA256")) });
+                    InstallMode = mode, InstallDirectory = directory, FileName = file, Sha256 = ManagedPath.Hash(Get(section, "SHA256")) });
             }
         }
         return new RealmInfo { SchemaVersion = 1, Name = Get("Realm", "Name", true), Description = Get("Realm", "Description"),

@@ -117,6 +117,65 @@ All `[Patch.<key>]` entries appear in **MANAGE PATCHES**, showing name, requirem
 
 INSTALL / REPAIR stages a download beside the destination, validates it, backs up any existing file and replaces it only after success. Valid existing hashed patches are not downloaded again. Explicit action can refresh hashless patches. REMOVE requires confirmation and backs up the selected file. No directory-wide pruning occurs. Paths reject roots, traversal, unsafe Windows filenames and symbolic links/junctions; management metadata cannot be targeted.
 
+### Dynamically allocated WoW MPQs
+
+Use `InstallMode=WowPatch` for realm-managed cumulative MPQs. Omit both
+`FileName` and `InstallDirectory` (even empty values are rejected):
+
+```ini
+[Patch.realm-content]
+Name=Realm Content
+Requirement=Required
+SourceType=HTTP
+SourceURL=https://downloads.example.com/realm-content-000002.mpq
+InstallMode=WowPatch
+SHA256=<64-character SHA-256 of the published artifact>
+```
+
+The server supplies the artifact, not a physical `patch-N.MPQ` name. After
+validating the selected client, Portalkeeper selects an unused slot in `Data`,
+from `patch-4.MPQ` through `patch-9.MPQ`. Stock patch slots remain reserved.
+The numeric range is deliberately bounded: 3.3.5a custom numeric suffixes are
+single digits; this mode does not allocate letter suffixes or `patch-10.MPQ`.
+See the [MPQ creation tutorial](https://www.wowmodding.net/topic/1460-41-creating-your-first-mpq-patch/)
+for the numeric/letter naming convention.
+
+Ownership is stored in `<client>/.portalkeeper/wow-patches.json`, as a realm
+identity, patch key and portable relative destination such as `Data/patch-6.MPQ`.
+The realm identity derives from its name, address and auth/world ports; the
+artifact URL and hash do not participate. Changing the realm name or endpoint
+creates a different identity; relocating its configuration file does not.
+Keep this metadata with the client. Missing metadata means existing MPQs are
+unowned; filenames and matching hashes alone never grant ownership.
+
+Each patch key gets a separate persistent allocation. All recorded realms and
+stale entries reserve their slots, including temporarily missing files. Filename
+collisions and ownership checks ignore case, including on Linux/Wine. Unowned
+files are never overwritten by WowPatch. Ambiguous case variants, unsafe paths,
+symlinks/junctions, malformed ownership records and exhausted slots fail with an
+error. The current realm's ordinary File destinations also reserve slots.
+
+Updates and rollbacks reuse the allocated destination when `SourceURL` and
+`SHA256` change. They use the same staged download, hash verification and backup
+pipeline as ordinary patches. Publish SHA-256 with each artifact so Required
+patches can verify the advertised version. Failed downloads or hash checks leave
+the installed MPQ and existing ownership unchanged; an invalid Required patch
+continues to block launch. Inspection never allocates or downloads. Explicit
+REMOVE backs up the MPQ and retains its allocation for reinstall. Removing an
+entry from realm.conf does not delete its file or metadata.
+
+New ownership is saved atomically after successful installation; a persistence
+failure removes the newly installed file. An interruption between those steps
+can leave an unowned MPQ, which Portalkeeper will conservatively leave untouched.
+Client-local locking prevents simultaneous WowPatch operations from assigning
+the same slot. All installed MPQs remain in Data across realm switches; use
+separate clients for realms whose content is incompatible.
+
+Omitting `InstallMode` still means `File`. Explicit `InstallMode=File` is also
+supported, with the existing required `FileName` and `InstallDirectory` behavior.
+Unknown mode names are configuration errors. No MPQ/DBC merging or automatic
+stale-file cleanup is performed.
+
 ## Regression checks
 
 ```sh

@@ -33,6 +33,7 @@ public sealed class ClientRequirements
     public string ExecutableSha256 { get; init; } = "";
 }
 public enum ComponentRequirement { Required, Recommended, Optional }
+public enum PatchInstallMode { File, WowPatch }
 public sealed class PatchDefinition
 {
     public string Id { get; init; } = "";
@@ -40,6 +41,7 @@ public sealed class PatchDefinition
     public ComponentRequirement Requirement { get; init; }
     public string SourceType { get; init; } = "HTTP";
     public string SourceUrl { get; init; } = "";
+    public PatchInstallMode InstallMode { get; init; } = PatchInstallMode.File;
     public string FileName { get; init; } = "";
     public string InstallDirectory { get; init; } = "";
     public string Sha256 { get; init; } = "";

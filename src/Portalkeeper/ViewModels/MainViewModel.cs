@@ -52,7 +52,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string RealmConnection => _realmInfo is null ? "" : $"{_realmInfo.Address} • Auth {_realmInfo.AuthPort} • World {_realmInfo.WorldPort}";
     private void RefreshPatches()
     {
-        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ClientPath, p)).ToArray() ?? Array.Empty<PatchInfo>();
+        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ClientPath, p, _realmInfo)).ToArray() ?? Array.Empty<PatchInfo>();
         OnPropertyChanged(nameof(Patches));
         OnPropertyChanged(nameof(HasManagedPatches));
         OnPropertyChanged(nameof(PatchesReady));
@@ -64,9 +64,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         if (IsGameRunning || IsLaunching) throw new InvalidOperationException("Close World of Warcraft before managing patches.");
         var patch = _realmInfo?.Patches.SingleOrDefault(p => p.Id == id) ?? throw new InvalidOperationException("Patch is not in the active realm configuration.");
-        if (remove) _patchService.Remove(ClientPath, patch);
-        else await _patchService.InstallAsync(ClientPath, patch);
-        RefreshPatches();
+        try
+        {
+            if (remove) _patchService.Remove(ClientPath, patch, _realmInfo);
+            else await _patchService.InstallAsync(ClientPath, patch, _realmInfo);
+        }
+        finally { RefreshPatches(); }
     }
 
 
