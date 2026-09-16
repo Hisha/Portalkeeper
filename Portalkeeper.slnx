@@ -4,5 +4,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Portalkeeper.Tests/Portalkeeper.Tests.csproj" />
+    <Project Path="tests/Portalkeeper.UiTests/Portalkeeper.UiTests.csproj" />
   </Folder>
 </Solution>

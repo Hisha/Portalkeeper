@@ -3,6 +3,31 @@
  xmlns:models="using:Portalkeeper.Models" x:Class="Portalkeeper.Views.ManagePatchesWindow"
  x:DataType="vm:MainViewModel" Title="Portalkeeper — Realm Patches" Width="820" Height="520"
  MinWidth="640" MinHeight="360" Background="#091019" WindowStartupLocation="CenterOwner">
+
+ <!-- This window has a fixed dark surface; keep actions legible in either system theme. -->
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#111A24" />
+            <Setter Property="Foreground" Value="#F6D477" />
+            <Setter Property="BorderBrush" Value="#9A6B1E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1B2A38" />
+            <Setter Property="BorderBrush" Value="#D2A43A" />
+            <Setter Property="Foreground" Value="#FFE9A8" />
+        </Style>
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="#0C131B" />
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.42" />
+        </Style>
+    </Window.Styles>
+
  <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
   <StackPanel Spacing="6">
    <TextBlock Text="REALM PATCHES" FontSize="24" Foreground="#D5AA50" />
