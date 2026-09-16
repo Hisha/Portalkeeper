@@ -26,11 +26,8 @@ internal sealed class ClientAssets : IDisposable
         var locales = new[] {"enUS","enGB","deDE","frFR","esES","esMX","ruRU","koKR","zhCN","zhTW"};
         var locale = locales.FirstOrDefault(l => map.ContainsKey($"{l}/locale-{l}.MPQ"))
             ?? throw new InvalidDataException("Client locale archives are unavailable.");
-        // Do not silently ignore a custom patch and render a different appearance.
-        if (map.Keys.Any(n => Path.GetFileName(n).StartsWith("patch", StringComparison.OrdinalIgnoreCase)
-            && !new[] {"patch.MPQ","patch-2.MPQ","patch-3.MPQ",$"patch-{locale}.MPQ",$"patch-{locale}-2.MPQ",$"patch-{locale}-3.MPQ"}
-                .Contains(Path.GetFileName(n), StringComparer.OrdinalIgnoreCase)))
-            throw new NotSupportedException("Preview unavailable for this custom-patch client.");
+        // Resolve previews from the supported 3.3.5a archives even when the realm
+        // installs additional MPQs. Missing or unsupported assets still fail during rendering.
         var order = new[] {$"{locale}/patch-{locale}-3.MPQ","patch-3.MPQ",$"{locale}/patch-{locale}-2.MPQ","patch-2.MPQ",$"{locale}/patch-{locale}.MPQ","patch.MPQ",$"{locale}/lichking-locale-{locale}.MPQ",$"{locale}/expansion-locale-{locale}.MPQ",$"{locale}/locale-{locale}.MPQ","lichking.MPQ","expansion.MPQ","common-2.MPQ","common.MPQ"};
         return order.Where(map.ContainsKey).Select(n => map[n]).ToArray();
     }

@@ -110,7 +110,7 @@
 
         <!-- Main launcher workflow -->
         <ScrollViewer Grid.Row="1">
-            <StackPanel Margin="24,22" Spacing="18">
+            <StackPanel Margin="24,14" Spacing="12">
 
                 <!-- Realm + Client -->
                 <Grid ColumnDefinitions="0.72*,1.28*" ColumnSpacing="18">
@@ -215,43 +215,34 @@
                     </Border>
                 </Grid>
 
-                <!-- Addon management -->
+                <!-- Client content -->
                 <Border Background="#0E1823"
                         BorderBrush="#6E5426"
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="18">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="ADDONS"
-                                       FontSize="12"
-                                       FontWeight="Bold"
-                                       Foreground="#D5AA50" />
-                            <TextBlock Text="Addon Management"
-                                       Margin="0,4,0,0"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="#F8F0DF" />
-                            <TextBlock Text="{Binding AddonStatus}"
-                                       FontSize="13"
-                                       Foreground="#AFA28D"
-                                       TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1"
-                                    Margin="24,0,0,0"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center"
-                                    Spacing="12">
-                            <TextBlock Text="{Binding AddonStatusSymbol}"
-                                       FontSize="18"
-                                       Foreground="#D8C5EA"
-                                       VerticalAlignment="Center" />
-                            <Button Content="MANAGE ADDONS"
-                                    Click="ManageAddons_Click"
-                                    Padding="20,10" />
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="CLIENT CONTENT"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   Foreground="#D5AA50" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Addons" FontSize="16" FontWeight="SemiBold" Foreground="#F8F0DF" />
+                                <TextBlock Text="{Binding AddonStatus}" FontSize="13" Foreground="#AFA28D" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="MANAGE ADDONS" Click="ManageAddons_Click"
+                                    Padding="20,8" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsVisible="{Binding HasManagedPatches}">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Patches" FontSize="16" FontWeight="SemiBold" Foreground="#F8F0DF" />
+                                <TextBlock Text="{Binding PatchStatus}" FontSize="13" Foreground="#AFA28D" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="MANAGE PATCHES" Click="ManagePatches_Click"
+                                    IsEnabled="{Binding ClientValid}" Padding="20,8" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
                 </Border>
 
                 <Border IsVisible="{Binding IsUpdateAvailable}" Background="#0E1823" BorderBrush="#6E5426" BorderThickness="1" Padding="12">
@@ -261,7 +252,6 @@
                     </Grid>
                 </Border>
                 <TextBlock Text="{Binding ConfigurationStatus}" TextWrapping="Wrap" Foreground="#AFA28D" />
-                <Button Content="MANAGE PATCHES" IsVisible="{Binding HasManagedPatches}" Click="ManagePatches_Click" IsEnabled="{Binding ClientValid}" Padding="20,10" />
                 <!-- Utility strip -->
                 <Border Background="#0A141E"
                         BorderBrush="#40331E"

@@ -47,6 +47,17 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string ApplicationVersion => "Portalkeeper " + RealmConfigurationService.CurrentVersion;
     public IReadOnlyList<PatchInfo> Patches { get; private set; } = Array.Empty<PatchInfo>();
     public bool PatchesReady => Patches.All(p => p.Definition.Requirement != ComponentRequirement.Required || p.IsValid);
+    public string PatchStatus
+    {
+        get
+        {
+            int valid = Patches.Count(p => p.IsValid);
+            int requiredMissing = Patches.Count(p => p.Definition.Requirement == ComponentRequirement.Required && !p.IsValid);
+            return requiredMissing > 0
+                ? $"{requiredMissing} required patch(es) need attention; {valid}/{Patches.Count} managed patches valid."
+                : $"Realm patch requirements satisfied; {valid}/{Patches.Count} managed patches valid.";
+        }
+    }
     public string RealmDescription => _realmInfo?.Description ?? "";
     public string RealmWebsite => _realmInfo?.WebsiteUrl ?? "";
     public string RealmConnection => _realmInfo is null ? "" : $"{_realmInfo.Address} • Auth {_realmInfo.AuthPort} • World {_realmInfo.WorldPort}";
@@ -56,6 +67,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Patches));
         OnPropertyChanged(nameof(HasManagedPatches));
         OnPropertyChanged(nameof(PatchesReady));
+        OnPropertyChanged(nameof(PatchStatus));
         OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
         UpdateLaunchReadinessStatus();
     }
