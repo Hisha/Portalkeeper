@@ -6,13 +6,13 @@ Linux functionality has been exercised, including focused Armory checks. Windows
 
 ## Current functionality
 
-- Validate a local client, discover one realm configuration, check authentication/world TCP reachability, prepare `realmlist.wtf` and launch WoW directly on Windows or through Wine on Linux. An unavailable health probe alone does not block launch.
+- Validate a local client, discover one realm configuration, check authentication/world TCP reachability, prepare `realmlist.wtf` and optional realm selection in `WTF/Config.wtf`, and launch WoW directly on Windows or through Wine on Linux. An unavailable health probe alone does not block launch.
 - Manage realm-required, recommended and personal addons, discover GitHub addon metadata, install/update managed folders and back up replacements. Required-addon readiness gates entry; unrelated addons and SavedVariables are retained.
 - Display optional realm news, a public monthly event calendar and the Armory, with downloaded-data fallback when available.
 - Search/filter the Armory roster by players or playerbots, inspect the existing equipment paper doll, quality colors, icons and detailed tooltips, and load dressed static character previews in the background.
 - Apply optional transmog appearances, including hidden equipment, while keeping original item information in slots/tooltips. Save the display preference per realm Armory URL.
 
-Portalkeeper does not distribute the client or store game account credentials. Launching writes the selected client's realmlist; addon installation writes managed addon folders. Preview extraction itself only reads client archives and does not modify them.
+Portalkeeper does not distribute the client or store game account credentials. Launching writes the selected client's realmlist and, when configured, its `WTF/Config.wtf` realmName; addon installation writes managed addon folders. Preview extraction itself only reads client archives and does not modify them.
 
 ## Build and run
 
@@ -84,7 +84,7 @@ MANAGE PATCHES is shown only when the active realm defines managed patches. Swit
 
 Portalkeeper checks the official Hisha/Portalkeeper latest stable GitHub release at startup at most approximately once per 24 hours. Attempts, including failures, are saved in settings; automatic failures stay quiet. Settings → CHECK FOR UPDATES bypasses the interval. A newer release appears as a non-blocking notice with VIEW RELEASE, which opens its official GitHub release page. Portalkeeper does not download or install updates. This advisory check is separate from a realm’s `MinimumVersion` requirement.
 
-`[Realm]` supplies name, description and website; `[Connection] Address` supplies `set realmlist <Address>`. `[Client]` supplies version, build, executable name and optional SHA-256, preserving existing executable metadata/build-marker validation. `[Portalkeeper] MinimumVersion` uses semantic version comparison and gives an upgrade message if incompatible.
+`[Realm] Name` is the administrator-controlled Portalkeeper display name. Optional `[Realm] GameRealmName` is the actual WoW realm name advertised by the authserver; it can differ from `Name` (for example, `Name=Eitrigg Realm` and `GameRealmName=Eitrigg`). On Enter Realm, Portalkeeper continues writing `[Connection] Address` to the locale's `realmlist.wtf` and, when `GameRealmName` is nonblank, writes `SET realmName "<GameRealmName>"` to `WTF/Config.wtf` before launching WoW. It replaces an existing realmName setting or adds one while retaining unrelated settings. Older realm files without `GameRealmName` leave `Config.wtf` untouched. `WorldPort` is not used to select a realm in client configuration. `[Client]` supplies version, build, executable name and optional SHA-256, preserving existing executable metadata/build-marker validation. `[Portalkeeper] MinimumVersion` uses semantic version comparison and gives an upgrade message if incompatible.
 
 `[Services]` supplies `NewsURL`, `CalendarURL`, `ArmoryURL`, `StatusURL`, `ManifestURL` and canonical `ConfigURL`. Empty optional URLs disable the corresponding feature. News, Calendar and Armory retain their existing viewers. `StatusURL` and `ManifestURL` are exposed by the model for discovery; the current application uses TCP health probes and the INI addon/patch catalog, not a second manifest. Neither optional endpoint is required to launch.
 

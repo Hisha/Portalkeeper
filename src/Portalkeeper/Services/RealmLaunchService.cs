@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Portalkeeper.Models;
 
@@ -79,6 +81,8 @@ public sealed class RealmLaunchService
         var realmlistPath = Path.Combine(localeDirectory, "realmlist.wtf");
 
         WriteRealmlist(realmlistPath, realm.Address, fullClientDirectory);
+        if (!string.IsNullOrWhiteSpace(realm.GameRealmName))
+            WriteGameRealmName(Path.Combine(fullClientDirectory, "WTF", "Config.wtf"), realm.GameRealmName, fullClientDirectory);
         var process = LaunchWow(wowExecutable, fullClientDirectory);
 
         return new RealmLaunchResult
@@ -223,6 +227,69 @@ public sealed class RealmLaunchService
             $"realmlist-{timestamp}.wtf");
 
         File.Copy(realmlistPath, backupPath, false);
+    }
+
+    private static void WriteGameRealmName(string configPath, string gameRealmName, string clientDirectory)
+    {
+        if (gameRealmName.Any(char.IsControl) || gameRealmName.Contains('"') || gameRealmName.Contains('\\'))
+            throw new InvalidOperationException("GameRealmName contains characters that cannot be written to Config.wtf.");
+
+        var desiredLine = $"SET realmName \"{gameRealmName}\"";
+        var exists = File.Exists(configPath);
+        var current = string.Empty;
+        Encoding encoding = new UTF8Encoding(false);
+        if (exists)
+        {
+            var bytes = File.ReadAllBytes(configPath);
+            using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, true);
+            current = reader.ReadToEnd();
+            encoding = reader.CurrentEncoding;
+            if (encoding.CodePage == Encoding.UTF8.CodePage &&
+                !(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF))
+                encoding = new UTF8Encoding(false);
+        }
+
+        var pattern = new Regex(@"^([ \t]*)SET[ \t]+realmName(?:[ \t]+[^\r\n]*)?[ \t]*(?=\r?$)",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        var found = false;
+        var updated = pattern.Replace(current, match =>
+        {
+            found = true;
+            return match.Groups[1].Value + desiredLine;
+        });
+        if (!found)
+        {
+            var newline = current.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" :
+                current.Contains('\n') ? "\n" : current.Contains('\r') ? "\r" : Environment.NewLine;
+            if (updated.Length > 0 && !updated.EndsWith('\n') && !updated.EndsWith('\r'))
+                updated += newline;
+            updated += desiredLine + newline;
+        }
+        if (exists && string.Equals(current, updated, StringComparison.Ordinal))
+            return;
+
+        var directory = Path.GetDirectoryName(configPath)
+            ?? throw new InvalidOperationException("Unable to determine the WoW configuration directory.");
+        Directory.CreateDirectory(directory);
+        if (exists)
+        {
+            var backupDirectory = Path.Combine(clientDirectory, ".portalkeeper", "backups", "config");
+            Directory.CreateDirectory(backupDirectory);
+            var backupPath = Path.Combine(backupDirectory, $"Config-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}.wtf");
+            File.Copy(configPath, backupPath, false);
+        }
+
+        var temporaryPath = configPath + ".portalkeeper.tmp";
+        try
+        {
+            File.WriteAllText(temporaryPath, updated, encoding);
+            File.Move(temporaryPath, configPath, true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+                File.Delete(temporaryPath);
+        }
     }
 
     private static string NormalizeLineEndings(string value)

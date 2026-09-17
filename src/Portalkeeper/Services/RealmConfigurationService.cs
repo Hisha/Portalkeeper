@@ -57,6 +57,9 @@ public sealed class RealmConfigurationService
         var address = Get("Connection", "Address", true);
         if (Uri.CheckHostName(address) == UriHostNameType.Unknown || address.Any(char.IsWhiteSpace))
             throw new InvalidDataException("Connection Address must be a host name or IP address.");
+        var gameRealmName = Get("Realm", "GameRealmName");
+        if (gameRealmName.Any(char.IsControl) || gameRealmName.Contains('"') || gameRealmName.Contains('\\'))
+            throw new InvalidDataException("GameRealmName contains characters that cannot be written to Config.wtf.");
         var minimum = Get("Portalkeeper", "MinimumVersion", true);
         if (CompareVersions(currentVersion ?? CurrentVersion, minimum) < 0)
             throw new InvalidDataException($"This realm requires Portalkeeper {minimum} or newer; installed version is {currentVersion ?? CurrentVersion}. Upgrade Portalkeeper before using it.");
@@ -113,7 +116,8 @@ public sealed class RealmConfigurationService
                     InstallMode = mode, InstallDirectory = directory, FileName = file, Sha256 = ManagedPath.Hash(Get(section, "SHA256")) });
             }
         }
-        return new RealmInfo { SchemaVersion = 1, Name = Get("Realm", "Name", true), Description = Get("Realm", "Description"),
+        return new RealmInfo { SchemaVersion = 1, Name = Get("Realm", "Name", true), GameRealmName = gameRealmName,
+            Description = Get("Realm", "Description"),
             WebsiteUrl = ManagedPath.Url(Get("Realm", "WebsiteURL"), true), Address = address, AuthPort = Port("AuthPort"), WorldPort = Port("WorldPort"),
             Client = new ClientRequirements { Version = version, Build = build, Executable = ManagedPath.Relative(Get("Client", "Executable", true), true),
                 ExecutableSha256 = ManagedPath.Hash(Get("Client", "ExecutableSHA256")) }, MinimumVersion = minimum,

@@ -8,6 +8,7 @@ public sealed class RealmInfo
     public int SchemaVersion { get; init; }
     public bool IsLegacyCompatibility { get; init; }
     public string Name { get; init; } = "";
+    public string GameRealmName { get; init; } = "";
     public string Description { get; init; } = "";
     public string WebsiteUrl { get; init; } = "";
     public string Address { get; init; } = "";
