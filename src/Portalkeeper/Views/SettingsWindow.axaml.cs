@@ -30,4 +30,22 @@ public partial class SettingsWindow : Window
     {
         Close();
     }
+
+    private async void ConstructRuntime_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm && vm.CanConstructRuntime)
+            await vm.ConstructTestRuntimeAsync();
+    }
+
+    private async void LaunchRuntime_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm && vm.CanLaunchConstructedRuntime)
+            await vm.LaunchConstructedRuntimeAsync();
+    }
+
+    private void ForgetRuntime_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+            vm.ForgetConstructedRuntime();
+    }
 }

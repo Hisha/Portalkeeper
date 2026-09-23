@@ -28,6 +28,14 @@ public sealed class BaselineAsset
     // never treated as Portalkeeper-owned, realm-modifiable content.
     public bool Immutable { get; init; } = true;
 
+    // Whether construction must fail when this allowlisted asset is missing
+    // from the source client. Non-required assets are inherited only when the
+    // source actually contains them (for example optional voice/base locale
+    // archives and the loose Blizzard stub files present in the reference
+    // client). Required assets are the ones a bootable 3.3.5a client depends
+    // on. Defaults to true for the authoritative core inventory.
+    public bool Required { get; init; } = true;
+
     // Explicit client-relative member files for Directory assets. Empty until
     // the authoritative stock addon inventory is supplied in a later step.
     public IReadOnlyList<string> Members { get; init; } = Array.Empty<string>();

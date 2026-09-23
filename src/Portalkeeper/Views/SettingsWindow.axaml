@@ -261,6 +261,53 @@
                         </Border>
                     </StackPanel>
                 </Border>
+
+                <!-- Isolated runtime (developer test) -->
+                <Border Background="#141018"
+                        BorderBrush="#6E3A3A"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="ISOLATED RUNTIME (DEVELOPER TEST)"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#C96A6A" />
+                        <TextBlock Text="Experimental construction of an isolated per-realm runtime from the selected source client. It never modifies your source client, never changes Settings.ClientPath, and does not affect normal ENTER REALM launching. Construction is allowed only when the runtime location shares a filesystem with the source client."
+                                   Foreground="#B89A9A"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <TextBlock Text="Proposed location:"
+                                       Foreground="#8E9AA5"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding ProposedRuntimePath}"
+                                       Foreground="#F2E7D0"
+                                       FontSize="12"
+                                       TextWrapping="Wrap" />
+                        </Grid>
+                        <TextBlock Text="{Binding RuntimeTestStatus}"
+                                   Foreground="#D8CCBA"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                        <WrapPanel Margin="0,4,0,0">
+                            <Button Content="CONSTRUCT TEST RUNTIME"
+                                    Click="ConstructRuntime_Click"
+                                    IsEnabled="{Binding CanConstructRuntime}"
+                                    Margin="0,0,10,6" />
+                            <Button Content="LAUNCH TEST RUNTIME"
+                                    Click="LaunchRuntime_Click"
+                                    IsEnabled="{Binding CanLaunchConstructedRuntime}"
+                                    Margin="0,0,10,6" />
+                            <Button Content="FORGET RUNTIME"
+                                    Click="ForgetRuntime_Click"
+                                    IsVisible="{Binding ConstructedRuntimePath}"
+                                    Margin="0,0,0,6" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

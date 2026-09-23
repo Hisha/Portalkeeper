@@ -1,19 +1,25 @@
 # Isolated Realm Runtime Architecture
 
-This document describes the architectural direction that will eventually let
-Portalkeeper stage a per-realm **managed runtime** derived from a user's existing
-World of Warcraft 3.3.5a installation, and the exact state of the implementation
-after **Checkpoint 1**.
+This document describes how Portalkeeper stages a per-realm **managed runtime**
+derived from a user's existing World of Warcraft 3.3.5a installation, and the
+exact state of the implementation after **Checkpoint 2**.
 
-Runtime construction is **not active**. This build behaves exactly like v0.3.1
-for an existing user. The work here is internal architecture and data-model
-only.
+Isolated runtime behavior is **not the normal launch path**. ENTER REALM,
+addon/patch management, Armory and the Armory continue to operate against
+`ClientPath` exactly as before. Checkpoint 2 adds an explicit, transactional
+runtime *constructor* and validator plus a small developer/test entry point
+that builds an isolated runtime on demand. Nothing switches normal realms to a
+runtime automatically, and `Settings.ClientPath` is never changed.
 
 ## Status
 
-- Checkpoint 1 status: **implemented**
-- Managed runtime construction: **not implemented**
-- Isolated (source != effective) behavior: **not activated**
+- Checkpoint 1 status: **implemented** (resolver seam, classification,
+  baseline + runtime manifest models, realm identity)
+- Checkpoint 2 status: **implemented** (transactional construction, validator,
+  hard-link service, explicit baseline inventory, locale discovery, test
+  harness, developer/test entry point)
+- Isolated (source != effective) behavior: **not activated** for normal flow;
+  available only through the explicit developer/test path in Settings.
 
 ---
 
@@ -169,9 +175,10 @@ Each `ManagedRuntimeFileEntry` distinguishes `LinkedBaseline`, `CopiedBaseline`,
 and `RealmOwned`, and records runtime-relative path, source-relative path (for
 baseline entries), and an optional expected SHA-256.
 
-The service provides serialization/deserialization and validation. The
-`Load`/`Save` file helpers are plumbing only; normal application flow does not
-write a runtime manifest anywhere. No runtime manifests are created on disk.
+The service provides serialization/deserialization and validation. In
+Checkpoint 1 `Load`/`Save` were plumbing only. In Checkpoint 2 the builder
+writes the manifest and the validator reads it; no normal application flow
+creates a runtime manifest.
 
 ### Realm identity
 
@@ -188,6 +195,157 @@ administrator-provided stable `RealmID`/GUID. No `RealmID` is added to
 
 ---
 
+## Checkpoint 2: what is implemented
+
+This checkpoint implements transactional runtime **construction** and
+**validation** using an explicit baseline allowlist and hard links. It remains
+an explicitly invoked developer/test capability; normal realms are unaffected.
+
+### Baseline inventory
+
+`Services/BaselineInventoryProvider.cs`
+
+An explicit, locale-parameterized 3.3.5a baseline allowlist built from the
+pristine reference client (`/home/smithkt/Downloads/WoWClient3.3.5a/` on the
+author's machine):
+
+- 8 root runtime files (`Wow.exe`, `WowError.exe`, `Battle.net.dll`,
+  `DivxDecoder.dll`, `dbghelp.dll`, `ijl15.dll`, `msvcr80.dll`, `unicows.dll`).
+  These are **copied** (never linked): they may be patched or replaced per
+  realm and must remain independent. `Wow.exe` alone can carry the realm's
+  authoritative `ExecutableSha256`.
+- 7 stock global `Data` archives (`common-2.MPQ`, `common.MPQ`,
+  `expansion.MPQ`, `lichking.MPQ`, `patch-2.MPQ`, `patch-3.MPQ`, `patch.MPQ`).
+- required locale archives for `<locale>` (e.g. `locale-enUS.MPQ`,
+  `expansion-locale-enUS.MPQ`, `lichking-locale-enUS.MPQ`, `patch-enUS.MPQ`,
+  `patch-enUS-2.MPQ`, `patch-enUS-3.MPQ`) and optional locale archives
+  (`speech-`, `expansion-speech-`, `lichking-speech-`, `base-`, `backup-`).
+- the 23 stock loose Blizzard addons as explicit `Blizzard_*` files
+  (`<AddOn>/<AddOn>.pub`), matching the pristine client. **No `Blizzard_`
+  folder is trusted by name**; only these explicit files are baseline.
+
+Every entry is relative only (rejected if it escapes), and `BaselineAsset` now
+carries `Required` (default `true`; optional locale archives and baseline
+addons are `Required = false` so an absent stock file is skipped, not fatal).
+
+### Locale discovery
+
+`Services/LocaleDiscovery.cs`
+
+Determines the runtime locale from the source client by finding the single
+`Data/<locale>/locale-<locale>.MPQ`. The fixture and real-client tests confirm
+`enUS` detection. The caller may also supply an explicit locale.
+
+### Hard-link service
+
+`Services/HardLinkService.cs`
+
+.NET managed code has no cross-platform hard-link create API, so this service
+wraps native calls:
+
+- Windows: `CreateHardLinkW` (Kernel32) plus `GetFileInformationByHandle`
+  (`BY_HANDLE_FILE_INFORMATION` volume + file index) for identity checks.
+- Linux: `link` (libc) plus `stat` (`st_dev` + `st_ino`, x86_64 struct layout)
+  for identity checks.
+- `TryCreateHardLink` never throws for filesystem failure classes; it returns
+  `HardLinkFailure` (CrossDevice, PermissionDenied, DestinationExists,
+  SourceNotFound, InvalidPath, Unexpected) and `DescribeFailure` maps it to a
+  user-readable message.
+- `SameFilesystem(left, right)` detects cross-volume construction up front.
+- `CanVerifyFileIdentity` / `AreSameFile` let the builder and validator verify
+  that a reported link is real (same inode) and that a copy is independent.
+
+### Managed runtime builder
+
+`Services/ManagedRuntimeBuilder.cs`
+
+Transactional construction of one realm runtime under a runtime root:
+
+```
+<runtime-root>/
+    <realm-id>/
+        .portalkeeper/managed-runtime.json
+        Wow.exe Data/... Interface/AddOns/...
+    <realm-id>.staging-<unique>/     (temporary during construction)
+```
+
+Flow:
+
+1. Validate the source client with the existing `ClientService.ValidateClient`
+   and the realm's `ClientRequirements` — validation is never weakened.
+2. Compute the source `Wow.exe` SHA-256; the realm's authoritative
+   `ExecutableSha256` is recorded as the expected hash of the copied runtime
+   `Wow.exe`.
+3. Discover the locale (or accept an explicit one).
+4. Load/validate the explicit baseline allowlist (`Required` semantics).
+5. Derive the stable realm identity and the final runtime path.
+6. Require the runtime root to be separate from the source client, and refuse
+   to overwrite an existing final runtime.
+7. Preflight: construction only works within a single volume. On an existing
+   different-volume layout Portalkeeper **refuses and explains** rather than
+   silently copying gigabytes. (Staging is Portalkeeper-owned; `Directory.Move`
+   promotes it within the same volume.)
+8. Build the staged runtime: root files are **copied**; `Data`, locale and
+   baseline-addon files are **hard-linked** from the source (immutable shared
+   inodes, zero extra data blocks) and every link is identity-verified.
+9. A hard link that cannot be created, a missing required asset, or a file
+   that fails to appear is an error; optional assets are skipped and recorded.
+10. Write the `ManagedRuntimeManifest` (`State = Complete`, `RuntimePath` =
+    final path) into `.portalkeeper/`, then validate the staged runtime.
+11. Promote the staging directory to the final path atomically and revalidate
+    the promoted runtime.
+
+On failure the staging directory is deleted; if deletion fails the orphan path
+is reported. The source client is never written; unknown or personal source
+files (`patch-4.MPQ`, personal addons, etc.) are never inherited.
+
+### Managed runtime validator
+
+`Services/ManagedRuntimeValidator.cs`
+
+Rejects anything that is not a complete, manifest-backed runtime:
+
+- missing/invalid/unparseable manifest, non-`Complete` state
+- realm identity / realm name mismatch, source client mismatch
+- manifest `RuntimePath` that does not match the runtime's actual location
+- missing runtime directories (`Data`, `Interface`, `Interface/AddOns`,
+  `Data/<locale>`) or missing launch executable
+- for each recorded file: exact containment, existence, SHA-256 verification
+  when a hash is recorded, hard-link identity against its source for
+  `LinkedBaseline`, and independence (not the same file) for `CopiedBaseline`
+
+### Developer/test entry point
+
+`src/Portalkeeper/ViewModels/MainViewModel.RuntimeTest.cs` and the
+"ISOLATED RUNTIME (DEVELOPER TEST)" section in `SettingsWindow.axaml`:
+
+- Shows the proposed, Portalkeeper-owned runtime location for the selected
+  realm.
+- CONSTRUCT TEST RUNTIME builds an isolated runtime from the selected source
+  client (same-volume default application root).
+- LAUNCH TEST RUNTIME launches the constructed runtime explicitly through the
+  existing `RealmLaunchService` (still bypassed by normal ENTER REALM).
+- FORGET RUNTIME clears the in-memory constructed path.
+
+This path deliberately never changes `Settings.ClientPath`, never alters
+`RealmRuntimeResolver`, and never launches through the normal ENTER REALM flow.
+
+### Test harness
+
+`tests/Portalkeeper.RuntimeTests/` — console harness, no external test
+framework:
+
+- default run: fixture battery (synthesized 3.3.5a client) covering
+  construction, exclusion of unknown/personal content, source untouched,
+  copied-vs-linked baseline semantics, manifest accuracy, validator
+  acceptance/rejection, staging cleanup, overwrite refusal, traversal
+  rejection, resolver unchanged, hard-link primitives, and cross-filesystem
+  refusal.
+- `real --source <path> --root <runtime-root> [--realm-conf <file>]`: builds
+  and validates a runtime from a real client + realm configuration.
+
+---
+
 ## Ownership rules (design intent)
 
 - **Immutable baseline**: verified baseline files are shared, immutable inputs
@@ -200,13 +358,14 @@ administrator-provided stable `RealmID`/GUID. No `RealmID` is added to
 
 ### Known baseline vs unknown source assets
 
-Later construction will work from the explicit baseline allowlist plus a
-per-realm manifest of Portalkeeper-managed components:
+Construction (Checkpoint 2) works from the explicit baseline allowlist; a
+per-realm manifest of Portalkeeper-managed components ("realm addons/patches in
+the runtime") is the remaining future work:
 
 ```
-verified Blizzard baseline addon files   -> hard-linked/copied into runtime
-Portalkeeper realm addons                 -> independent Portalkeeper-owned files
-unknown/personal source addons            -> NOT automatically inherited
+verified Blizzard baseline addon files   -> hard-linked/copied into runtime (implemented)
+Portalkeeper realm addons                 -> independent Portalkeeper-owned files (future)
+unknown/personal source addons            -> NOT automatically inherited (implemented)
 ```
 
 ### Why unknown source patches/addons are not inherited
@@ -223,7 +382,7 @@ than trusting folders named `Blizzard_*`.
 
 ## Future transactional runtime construction (not implemented)
 
-The intended later stream (Checkpoint 2+):
+The intended later stream (Checkpoint 3+):
 
 1. Build a runtime generation in a staging directory inside the managed root.
 2. Acquire the baseline allowlist; for each explicit baseline file, verify the
@@ -235,35 +394,50 @@ The intended later stream (Checkpoint 2+):
 5. Only a complete, manifest-backed runtime becomes the effective client used by
    addon/patch management and launch.
 
-None of this is active. No runtimes are created, no hard links are made, and no
-source files are touched by the new architecture.
+Checkpoint 2 implements steps 1–2 for the explicit baseline anyway (plus
+validation and the explicit test path). Steps 3–5 remain **not active** for the
+normal flow: no realm addons/patches are installed into a runtime, no runtime is
+swapped in as the effective client automatically, and `ClientPath` is unchanged.
 
 ---
 
 ## Intentionally not implemented
 
-- Managed runtime directory creation
-- Hard links to baseline files
-- Copying baseline files into a runtime
-- Moving/renaming/deleting files in the user's WoW installation
-- Changing the launch target
-- Changing addon or patch destinations
+- Making an isolated runtime the default/automatic launch or management client
+- Installing realm addons or patches into a runtime
+- Auto-repair / auto-rebuild of a runtime from the UI (an existing runtime is
+  never overwritten; construction is refused with guidance instead)
+- Copy fallback across volumes (refused with an explanation)
+- Changing `Settings.ClientPath`
+- Changing the normal addon or patch destinations
 - Modifying `realm.conf` schema
 - `Eitrigg.exe`
 - `Wow.exe` patching
 - FrameXML bypasses
 - Migrating existing users or cleaning legacy realm files
 - UI redesign
-- A complete 12340 baseline hash inventory
+- A complete 12340 baseline hash inventory (only the realm-supplied Wow.exe
+  hash is authoritative today; other baseline files are path-allowlisted only)
 
 ## Verification
 
 - `dotnet build src/Portalkeeper/Portalkeeper.csproj` succeeds with zero warnings
   and zero errors.
-- The repository `Portalkeeper.slnx` references `tests/Portalkeeper.Tests` and
-  `tests/Portalkeeper.UiTests`, which are absent from this checkout, so no
-  automated test suite could be run. No test project was reconstructed in this
-  checkpoint.
-- Static checks confirm `EffectiveClientPath` resolves to `ClientPath`, realm
-  behavior is unchanged by construction, and the new code creates no runtime
-  directories, hard links, or source-modifying operations.
+- `tests/Portalkeeper.RuntimeTests` fixture battery: 46/46 checks passed on
+  Linux (construction, exclusion of unknown content, source untouched, copied vs
+  linked baseline semantics, staging cleanup, manifest accuracy, validator
+  accept/reject, traversal rejection, overwrite refusal, resolver unchanged,
+  hard-link primitives, cross-filesystem refusal).
+- Real-client scenario on Linux: built an Eitrigg runtime from the actual
+  3.3.5a source (`locale enUS`, 49 file entries, 0 skipped) and validated it
+  successfully; inode/device identity confirmed genuine hard links for
+  `Data/common.MPQ` and `Data/enUS/locale-enUS.MPQ`, and the runtime `Wow.exe`
+  was an independent copy matching the realm's authoritative SHA-256 —
+  `aa63a5...e88cb8`.
+- Windows native paths (`CreateHardLinkW`, `GetFileInformationByHandle`) were
+  compiled on Linux only; they require a Windows build plus runtime construction
+  and identity verification before they are considered runtime-verified.
+- Launching a constructed runtime remains **manual**: it requires a Windows or
+  Linux desktop session with a real WoW session, so a game launch
+  (construct → launch → log into the realm) from the Settings developer/test
+  section is the follow-up manual test.
