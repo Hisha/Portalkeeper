@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Portalkeeper.Models;
@@ -36,11 +34,7 @@ public sealed class WowPatchAllocationStore
         _data = ExistingEntry(_root, "Data") ?? throw new InvalidDataException("The WoW Data directory was not found.");
         _data = ManagedPath.Resolve(_root, Path.GetFileName(_data));
         if (!Directory.Exists(_data)) throw new InvalidDataException("The WoW Data directory is not a directory.");
-        // Logical realm identity deliberately excludes source URLs, hashes and config location.
-        _realmId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new[] {
-            realm.Name.ToUpperInvariant(), realm.Address.ToUpperInvariant(),
-            realm.AuthPort.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            realm.WorldPort.ToString(System.Globalization.CultureInfo.InvariantCulture) }))));
+        _realmId = RealmIdentity.FromRealm(realm);
         _fileDestinations = realm.Patches.Where(p => p.InstallMode == PatchInstallMode.File)
             .Select(p => (ManagedPath.Relative(p.InstallDirectory) + "/" + ManagedPath.Relative(p.FileName, true)).Replace('\\', '/'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);

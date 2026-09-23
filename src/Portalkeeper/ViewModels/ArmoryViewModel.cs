@@ -47,7 +47,7 @@ public sealed class ArmoryViewModel : INotifyPropertyChanged, IDisposable
         _service = service;
         _transmogSupported = feed.Capabilities?.Transmogrification == true;
         _showTransmog = showTransmog;
-        _clientFolder = clientFolder ?? new SettingsService().Load().ClientPath;
+        _clientFolder = clientFolder ?? new RealmRuntimeResolver().ResolveEffectiveClientPath(new SettingsService().Load().ClientPath);
         _previews = previews ?? new ArmoryPreviewService();
         _indexUrl = indexUrl;
         _status = status;

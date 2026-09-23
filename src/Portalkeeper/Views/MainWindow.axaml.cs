@@ -112,7 +112,7 @@ public partial class MainWindow : Window
 
         var window = new ArmoryWindow
         {
-            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService, viewModel.ClientPath, showTransmog: viewModel.ShowTransmogrifiedAppearances)
+            DataContext = new ArmoryViewModel(result.Feed, viewModel.ArmoryUrl, result.Status, viewModel.ArmoryService, viewModel.EffectiveClientPath, showTransmog: viewModel.ShowTransmogrifiedAppearances)
         };
         var realmUrl = viewModel.ArmoryUrl;
         System.ComponentModel.PropertyChangedEventHandler preferenceChanged = (_, args) =>

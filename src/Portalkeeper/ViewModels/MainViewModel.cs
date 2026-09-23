@@ -41,6 +41,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private RealmInfo? _realmInfo;
     private readonly RealmConfigurationStore _realmStore = new();
     private readonly PatchService _patchService = new();
+    private readonly RealmRuntimeResolver _realmRuntimeResolver = new();
     private readonly SemaphoreSlim _configLock = new(1, 1);
     private string _configurationStatus = "Checking realm configuration...";
     public string ConfigurationStatus => _configurationStatus;
@@ -63,7 +64,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string RealmConnection => _realmInfo is null ? "" : $"{_realmInfo.Address} • Auth {_realmInfo.AuthPort} • World {_realmInfo.WorldPort}";
     private void RefreshPatches()
     {
-        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ClientPath, p, _realmInfo)).ToArray() ?? Array.Empty<PatchInfo>();
+        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(EffectiveClientPath, p, _realmInfo)).ToArray() ?? Array.Empty<PatchInfo>();
         OnPropertyChanged(nameof(Patches));
         OnPropertyChanged(nameof(HasManagedPatches));
         OnPropertyChanged(nameof(PatchesReady));
@@ -78,8 +79,8 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         var patch = _realmInfo?.Patches.SingleOrDefault(p => p.Id == id) ?? throw new InvalidOperationException("Patch is not in the active realm configuration.");
         try
         {
-            if (remove) _patchService.Remove(ClientPath, patch, _realmInfo);
-            else await _patchService.InstallAsync(ClientPath, patch, _realmInfo);
+            if (remove) _patchService.Remove(EffectiveClientPath, patch, _realmInfo);
+            else await _patchService.InstallAsync(EffectiveClientPath, patch, _realmInfo);
         }
         finally { RefreshPatches(); }
     }
@@ -218,7 +219,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
 
         await _addonInstallerService.InstallOrUpdateAsync(
-            ClientPath,
+            EffectiveClientPath,
             addon.Definition);
 
         await LoadAddonsAsync();
@@ -235,7 +236,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         foreach (var addon in pending)
         {
             await _addonInstallerService.InstallOrUpdateAsync(
-                ClientPath,
+                EffectiveClientPath,
                 addon.Definition);
         }
 
@@ -298,7 +299,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         if (addon is not null && !addon.IsInstalled)
         {
             await _addonInstallerService.InstallOrUpdateAsync(
-                ClientPath,
+                EffectiveClientPath,
                 addon.Definition);
 
             await LoadAddonsAsync();
@@ -310,7 +311,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         if (IsGameRunning || IsLaunching) throw new InvalidOperationException("Close World of Warcraft before removing addons.");
         var addon = _addons.Single(a => a.Definition.Id == addonId);
-        _addonInstallerService.Remove(ClientPath, addon.Definition);
+        _addonInstallerService.Remove(EffectiveClientPath, addon.Definition);
         await LoadAddonsAsync();
     }
     public async Task RemovePersonalAddonAsync(string addonId)
@@ -411,6 +412,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    // The client root the launcher actually operates on. Checkpoint 1 resolves
+    // this to the source ClientPath; an isolated realm runtime can supply a
+    // different effective root later without changing the persisted setting.
+    public string EffectiveClientPath =>
+        _realmRuntimeResolver.ResolveEffectiveClientPath(ClientPath, _realmInfo);
+
     public string ClientStatus
     {
         get => _clientStatus;
@@ -470,7 +477,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }
 
     public string LaunchEnvironmentStatus =>
-        _realmLaunchService.GetLaunchEnvironmentSummary(ClientPath);
+        _realmLaunchService.GetLaunchEnvironmentSummary(EffectiveClientPath);
 
     // ---------------------------------------------------------
     // Launch readiness
@@ -549,14 +556,14 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
+            ApplyClientInfo(_clientService.ValidateClient(EffectiveClientPath, _realmInfo.Client));
             RefreshPatches();
             if (!ClientValid || !PatchesReady) throw new InvalidOperationException(!ClientValid ? ClientStatus : "Required patches need attention.");
-            var currentAddons = _addonService.InspectAddons(ClientPath, _addonManifest!);
+            var currentAddons = _addonService.InspectAddons(EffectiveClientPath, _addonManifest!);
             var unsatisfied = currentAddons.Where(a => a.Definition.Required && (!a.IsInstalled || a.IsUpdateAvailable)).ToArray();
             if (unsatisfied.Length > 0) throw new InvalidOperationException("Required addons need attention: " + string.Join(", ", unsatisfied.Select(a => a.Definition.Name)));
             result = _realmLaunchService.PrepareAndLaunch(
-                ClientPath,
+                EffectiveClientPath,
                 _realmInfo);
 
             IsGameRunning = true;
@@ -772,7 +779,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _realmHealthState = RealmHealthState.Unknown;
             if (_realmInfo is not null)
             {
-                ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
+                ApplyClientInfo(_clientService.ValidateClient(EffectiveClientPath, _realmInfo.Client));
                 if (ArmoryAvailable) _ = LoadArmoryAsync();
             }
         }
@@ -917,7 +924,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
             _addons =
                 _addonService.InspectAddons(
-                    ClientPath,
+                    EffectiveClientPath,
                     _addonManifest)
                 .Select(info => realmSourceErrors.TryGetValue(info.Definition.Id, out var error)
                     ? new AddonInfo { Definition = info.Definition, DirectoryPath = info.DirectoryPath,
