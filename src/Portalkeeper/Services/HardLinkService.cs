@@ -152,6 +152,17 @@ public sealed class HardLinkService
         }
     }
 
+    // Fail closed if identity/link-count inspection is unavailable. A generated
+    // executable must own its inode/file-id exclusively, not just differ from Wow.exe.
+    public bool IsIndependentFile(string path)
+    {
+        if (OperatingSystem.IsWindows())
+            return WindowsNative.TryGetFileId(path)?.Links == 1;
+        if (OperatingSystem.IsLinux())
+            return LinuxNative.TryGetFileId(path)?.Links == 1;
+        return false;
+    }
+
     public string DescribeFailure(HardLinkFailure failure) => failure switch
     {
         HardLinkFailure.CrossDevice =>
@@ -237,7 +248,7 @@ public sealed class HardLinkService
             _ => HardLinkFailure.Unexpected
         };
 
-        public static (bool Ok, uint Volume, ulong Index)? TryGetFileId(string path)
+        public static (bool Ok, uint Volume, ulong Index, uint Links)? TryGetFileId(string path)
         {
             using var handle = CreateFileW(
                 path,
@@ -251,7 +262,7 @@ public sealed class HardLinkService
             if (handle.IsInvalid || !GetFileInformationByHandle(handle, out var info))
                 return null;
 
-            return (true, info.DwVolumeSerialNumber, ((ulong)info.NFileIndexHigh << 32) | info.NFileIndexLow);
+            return (true, info.DwVolumeSerialNumber, ((ulong)info.NFileIndexHigh << 32) | info.NFileIndexLow, info.NNumberOfLinks);
         }
     }
 
@@ -311,7 +322,7 @@ public sealed class HardLinkService
             _ => HardLinkFailure.Unexpected
         };
 
-        public static (bool Ok, ulong Device, ulong Inode)? TryGetFileId(string path)
+        public static (bool Ok, ulong Device, ulong Inode, ulong Links)? TryGetFileId(string path)
         {
             if (!File.Exists(path) && !Directory.Exists(path))
                 return null;
@@ -319,7 +330,7 @@ public sealed class HardLinkService
             if (stat(path, out var buffer) != 0)
                 return null;
 
-            return (true, buffer.StDev, buffer.StIno);
+            return (true, buffer.StDev, buffer.StIno, buffer.StNlink);
         }
     }
 }

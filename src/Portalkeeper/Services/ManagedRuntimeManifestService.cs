@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Portalkeeper.Models;
 using Portalkeeper.Models.Runtime;
@@ -96,8 +97,35 @@ public sealed class ManagedRuntimeManifestService
                     $"Realm-owned entries cannot carry a source-relative path: {entry.RuntimeRelativePath}.");
             }
 
+            if (!Enum.IsDefined(entry.Kind))
+                throw new InvalidDataException("Invalid managed runtime file kind.");
+
             if (entry.Sha256.Length != 0)
                 ManagedPath.Hash(entry.Sha256);
+        }
+
+        if (manifest.RealmExecutable is { } executable)
+        {
+            RuntimePaths.NormalizeRelative(executable.SourceRelativePath, fileName: true);
+            RuntimePaths.NormalizeRelative(executable.RuntimeRelativePath, fileName: true);
+            ManagedPath.Hash(executable.SourceSha256);
+            ManagedPath.Hash(executable.Sha256);
+            if (executable.SourceSha256.Length == 0 || executable.Sha256.Length == 0 ||
+                executable.Generation != 1 || executable.State != RealmExecutableState.BaselineCopy ||
+                !executable.Sha256.Equals(executable.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                !executable.SourceSha256.Equals(manifest.SourceExecutableSha256, StringComparison.OrdinalIgnoreCase) ||
+                executable.RuntimeRelativePath != RealmExecutableService.FileName(manifest.RealmName, manifest.RealmId) ||
+                manifest.LaunchExecutableRelativePath != executable.RuntimeRelativePath)
+                throw new InvalidDataException("Invalid realm executable ownership, hash, or generation state.");
+            var owned = manifest.Files.SingleOrDefault(e => e.RuntimeRelativePath.Equals(
+                executable.RuntimeRelativePath, StringComparison.OrdinalIgnoreCase));
+            var baseline = manifest.Files.SingleOrDefault(e => e.RuntimeRelativePath.Equals(
+                executable.SourceRelativePath, StringComparison.OrdinalIgnoreCase));
+            if (owned is null || owned.Kind != ManagedRuntimeFileKind.RealmOwned ||
+                !owned.Sha256.Equals(executable.Sha256, StringComparison.OrdinalIgnoreCase) ||
+                baseline is null || baseline.Kind != ManagedRuntimeFileKind.CopiedBaseline ||
+                !baseline.SourceRelativePath.Equals(executable.SourceRelativePath, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Realm executable must have a separate owned file entry and a copied source baseline.");
         }
     }
 

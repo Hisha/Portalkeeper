@@ -29,7 +29,8 @@ public sealed class ManagedRuntimeValidator
         string runtimePath,
         RealmInfo realm,
         string sourceClientPath,
-        string? expectedFinalRuntimePath = null)
+        string? expectedFinalRuntimePath = null,
+        bool validateRealmExecutable = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(runtimePath);
         ArgumentNullException.ThrowIfNull(realm);
@@ -44,7 +45,12 @@ public sealed class ManagedRuntimeValidator
             return new ManagedRuntimeValidationResult { IsValid = false, Errors = errors };
         }
 
-        var manifestPath = Path.Combine(fullRuntimePath, ".portalkeeper", "managed-runtime.json");
+        string manifestPath;
+        try { manifestPath = RuntimePaths.Resolve(fullRuntimePath, ManagedRuntimeBuilder.ManifestRelativePath); }
+        catch (Exception ex)
+        {
+            return new ManagedRuntimeValidationResult { Errors = new[] { ex.Message } };
+        }
 
         if (!File.Exists(manifestPath))
         {
@@ -98,14 +104,19 @@ public sealed class ManagedRuntimeValidator
 
         if (manifest.LaunchExecutableRelativePath.Length == 0)
             errors.Add("The runtime manifest does not record a launch executable.");
-        else
+        else if (validateRealmExecutable || manifest.RealmExecutable is null)
         {
             var launchPath = TryResolve(fullRuntimePath, manifest.LaunchExecutableRelativePath, errors, "Launch executable");
             if (launchPath is null || !File.Exists(launchPath))
                 errors.Add($"The launch executable '{manifest.LaunchExecutableRelativePath}' does not exist in the runtime.");
         }
 
-        ValidateFiles(fullRuntimePath, sourceClientPath, manifest, errors);
+        ValidateFiles(fullRuntimePath, sourceClientPath, manifest, errors, validateRealmExecutable);
+        if (validateRealmExecutable && manifest.RealmExecutable is not null)
+        {
+            try { RealmExecutableService.RequireValid(fullRuntimePath, sourceClientPath, realm, manifest); }
+            catch (Exception ex) { errors.Add(ex.Message); }
+        }
 
         return new ManagedRuntimeValidationResult
         {
@@ -118,11 +129,15 @@ public sealed class ManagedRuntimeValidator
         string runtimePath,
         string sourceClientPath,
         ManagedRuntimeManifest manifest,
-        List<string> errors)
+        List<string> errors,
+        bool validateRealmExecutable)
     {
         foreach (var entry in manifest.Files)
         {
             ArgumentNullException.ThrowIfNull(entry);
+            // Preparation may recover a missing executable, but never skips any baseline check.
+            if (!validateRealmExecutable && manifest.RealmExecutable is { } executable &&
+                entry.RuntimeRelativePath == executable.RuntimeRelativePath) continue;
 
             var runtimeFilePath = TryResolve(runtimePath, entry.RuntimeRelativePath, errors, "Runtime file");
             if (runtimeFilePath is null)

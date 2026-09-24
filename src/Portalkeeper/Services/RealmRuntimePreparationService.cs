@@ -57,7 +57,7 @@ public sealed class RealmRuntimePreparationService
         var path = resolver.GetRuntimePath(realm);
         if (Directory.Exists(path))
         {
-            var validation = new ManagedRuntimeValidator().Validate(path, realm, source);
+            var validation = new ManagedRuntimeValidator().Validate(path, realm, source, validateRealmExecutable: false);
             if (!validation.IsValid)
                 throw new InvalidOperationException("Existing isolated runtime needs explicit repair/rebuild: " +
                     string.Join(Environment.NewLine, validation.Errors));
@@ -69,6 +69,9 @@ public sealed class RealmRuntimePreparationService
             manifest.ProvisionedConfiguration = "";
             manifests.Save(manifest, manifestPath);
             await ProvisionAsync(path, realm, progress).ConfigureAwait(false);
+            progress?.Report("Preparing verified realm executable...");
+            new RealmExecutableService().Prepare(path, source, realm);
+            manifest = manifests.Load(manifestPath);
             validation = new ManagedRuntimeValidator().Validate(path, realm, source);
             if (!validation.IsValid) throw new InvalidOperationException(string.Join(Environment.NewLine, validation.Errors));
             manifest.ProvisionedConfiguration = ConfigurationKey(realm);
@@ -79,7 +82,13 @@ public sealed class RealmRuntimePreparationService
             progress?.Report("Constructing isolated realm client; your original installation is unchanged...");
             await new ManagedRuntimeBuilder().BuildAsync(new ManagedRuntimeBuildOptions
             { SourceClientPath = source, Realm = realm, RuntimeRoot = _runtimeRoot },
-                staging => ProvisionAsync(staging, realm, progress)).ConfigureAwait(false);
+                async staging =>
+                {
+                    await ProvisionAsync(staging, realm, progress).ConfigureAwait(false);
+                    progress?.Report("Preparing verified realm executable...");
+                    new RealmExecutableService().Prepare(staging, source, realm,
+                        expectedFinalRuntimePath: resolver.GetRuntimePath(realm));
+                }).ConfigureAwait(false);
         }
         progress?.Report("Validating isolated realm client...");
         return resolver.ResolveEffectiveClientPath(source, realm);

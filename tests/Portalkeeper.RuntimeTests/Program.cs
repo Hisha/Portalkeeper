@@ -24,6 +24,8 @@ internal static partial class Program
 
         if (args.Length > 0 && args[0] == "checkpoint3")
             return RunCheckpoint3().GetAwaiter().GetResult();
+        if (args.Length > 0 && args[0] == "checkpoint4")
+            return RunCheckpoint4().GetAwaiter().GetResult();
         return RunBattery();
     }
 
@@ -175,7 +177,8 @@ internal static partial class Program
                 RuntimePaths.SamePath(resolver.ResolveEffectiveClientPath(resolvedSource, realm), resolvedSource));
 
             // 14. Hard-link service primitives.
-            var volHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var volHome = Environment.GetEnvironmentVariable("PORTALKEEPER_TEST_CROSS_VOLUME_ROOT")
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var srcPrime = Path.Combine(root, "link-src.bin");
             var dstPrime = Path.Combine(root, "link-dst.bin");
             File.WriteAllText(srcPrime, "prime");

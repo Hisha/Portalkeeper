@@ -73,13 +73,21 @@ public sealed class RealmLaunchService
             throw new DirectoryNotFoundException(
                 "The configured World of Warcraft client directory no longer exists.");
 
-        var wowExecutable = ClientService.FindWowExecutable(fullClientDirectory, realm.Client.Executable)
-            ?? throw new FileNotFoundException(
-                "Wow.exe was not found in the configured client directory.");
-
+        string wowExecutable;
         if (realm.Client.RuntimeMode == ClientRuntimeMode.Isolated)
-            RealmRuntimeResolver.RequireReady(fullClientDirectory,
-                sourceClientDirectory ?? throw new InvalidOperationException("An isolated launch requires its source client."), realm);
+        {
+            var source = sourceClientDirectory ??
+                throw new InvalidOperationException("An isolated launch requires its source client.");
+            RealmRuntimeResolver.RequireReady(fullClientDirectory, source, realm);
+            var manifest = new ManagedRuntimeManifestService().Load(
+                RuntimePaths.Resolve(fullClientDirectory, ManagedRuntimeBuilder.ManifestRelativePath));
+            wowExecutable = RealmExecutableService.RequireValid(fullClientDirectory, source, realm, manifest);
+        }
+        else
+        {
+            wowExecutable = ClientService.FindWowExecutable(fullClientDirectory, realm.Client.Executable)
+                ?? throw new FileNotFoundException("Wow.exe was not found in the configured client directory.");
+        }
 
         var localeDirectory = FindLocaleDirectory(fullClientDirectory);
         var locale = Path.GetFileName(localeDirectory);

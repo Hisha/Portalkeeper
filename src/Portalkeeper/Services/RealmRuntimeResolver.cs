@@ -34,6 +34,8 @@ public sealed class RealmRuntimeResolver
         var manifest = new ManagedRuntimeManifestService().Load(Path.Combine(path, ManagedRuntimeBuilder.ManifestRelativePath));
         if (manifest.ProvisionedConfiguration != RealmRuntimePreparationService.ConfigurationKey(realm))
             throw new InvalidOperationException("Isolated runtime requires realm content preparation.");
+        if (manifest.RealmExecutable is null)
+            throw new InvalidOperationException("Isolated runtime requires realm executable preparation.");
         RealmRuntimePreparationService.RequireContent(path, realm);
     }
 

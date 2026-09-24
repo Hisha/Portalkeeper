@@ -17,6 +17,11 @@ public static class ManagedRuntimeWriteGuard
             relative.StartsWith(".portalkeeper/", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Realm content cannot replace runtime management metadata.");
         var manifest = new ManagedRuntimeManifestService().Load(manifestPath);
+        if (manifest.RealmExecutable is { } executable &&
+            (executable.RuntimeRelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase) ||
+             executable.RuntimeRelativePath.StartsWith(relative + "/", StringComparison.OrdinalIgnoreCase) ||
+             relative.StartsWith(executable.RuntimeRelativePath + "/", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Realm content cannot replace the managed realm executable.");
         foreach (var entry in manifest.Files)
         {
             if (entry.Kind is not (ManagedRuntimeFileKind.LinkedBaseline or ManagedRuntimeFileKind.CopiedBaseline)) continue;

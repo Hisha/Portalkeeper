@@ -33,7 +33,10 @@ public sealed class ManagedRuntimeManifest
 
     public string Locale { get; init; } = string.Empty;
 
-    public string LaunchExecutableRelativePath { get; init; } = string.Empty;
+    public string LaunchExecutableRelativePath { get; set; } = string.Empty;
+
+    // Absent in CP2/CP3. Presence records ownership; readiness also checks the file.
+    public ManagedRealmExecutable? RealmExecutable { get; set; }
 
     public ManagedRuntimeState State { get; init; } = ManagedRuntimeState.Incomplete;
 

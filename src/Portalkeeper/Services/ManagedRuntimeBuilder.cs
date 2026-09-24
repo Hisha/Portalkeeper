@@ -172,6 +172,7 @@ public sealed class ManagedRuntimeBuilder
             if (provision is not null)
             {
                 await provision(stagingPath).ConfigureAwait(false);
+                runtimeManifest = _manifestService.Load(Path.Combine(stagingPath, ManifestRelativePath));
                 runtimeManifest.ProvisionedConfiguration = RealmRuntimePreparationService.ConfigurationKey(options.Realm);
                 _manifestService.Save(runtimeManifest, Path.Combine(stagingPath, ManifestRelativePath));
             }
