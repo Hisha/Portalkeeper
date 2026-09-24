@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 namespace Portalkeeper.Models;
 
 // Canonical Schema v1 model; existing consumers retain their typed property names.
@@ -30,11 +32,23 @@ public enum ClientRuntimeMode { Legacy, Isolated }
 
 public sealed class ClientRequirements
 {
+    public const string ProtectedFrameXmlRequirement = "protected-framexml";
+    private static readonly string[] KnownRequirements = { ProtectedFrameXmlRequirement };
     public ClientRuntimeMode RuntimeMode { get; init; } = ClientRuntimeMode.Legacy;
     public string Version { get; init; } = "3.3.5a";
     public string Build { get; init; } = "12340";
     public string Executable { get; init; } = "Wow.exe";
     public string ExecutableSha256 { get; init; } = "";
+    public IReadOnlyList<string> Requirements { get; init; } = Array.Empty<string>();
+    public bool RequiresProtectedFrameXml => Requirements.Contains(ProtectedFrameXmlRequirement, StringComparer.OrdinalIgnoreCase);
+    public bool IsKnownRequirement(string requirement) =>
+        !string.IsNullOrWhiteSpace(requirement) && KnownRequirements.Contains(requirement, StringComparer.OrdinalIgnoreCase);
+    public void ThrowIfUnsupportedRequirement()
+    {
+        foreach (var requirement in Requirements)
+            if (!IsKnownRequirement(requirement))
+                throw new InvalidDataException("Unsupported client requirement: " + requirement);
+    }
 }
 public enum ComponentRequirement { Required, Recommended, Optional }
 public enum PatchInstallMode { File, WowPatch }

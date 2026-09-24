@@ -37,7 +37,8 @@ internal static partial class Program
             RealmInfo Realm(string name, string? hash = null) => new()
             {
                 SchemaVersion = 1, Name = name, Address = "fixture.invalid", GameRealmName = "Fixture",
-                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = hash ?? legacy.Client.ExecutableSha256 }
+                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = hash ?? legacy.Client.ExecutableSha256,
+                    Requirements = new[] { ClientRequirements.ProtectedFrameXmlRequirement } }
             };
             ManagedRuntimeManifest Load(string runtime) => manifests.Load(Path.Combine(runtime, ManagedRuntimeBuilder.ManifestRelativePath));
             string Executable(string runtime) => RuntimePaths.Resolve(runtime, Load(runtime).RealmExecutable!.RuntimeRelativePath);

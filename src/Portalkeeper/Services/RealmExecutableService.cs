@@ -29,12 +29,18 @@ public sealed class RealmExecutableService
     // Fault injection observes transaction boundaries only; it cannot substitute a recipe.
     internal RealmExecutableService(Action<string> checkpoint) => _checkpoint = checkpoint;
 
+    public static bool RequiresGeneration2(RealmInfo realm) =>
+        realm.Client.RuntimeMode == ClientRuntimeMode.Isolated && realm.Client.RequiresProtectedFrameXml;
+
     private sealed record GenerationTransaction(string PriorManifest, string NextManifest, string BackupRelativePath);
 
     public void Prepare(string root, string source, RealmInfo realm, string? expectedFinalRuntimePath = null)
     {
+        realm.Client.ThrowIfUnsupportedRequirement();
         if (realm.Client.RuntimeMode != ClientRuntimeMode.Isolated)
             throw new InvalidOperationException("Realm executable preparation requires an isolated realm.");
+        if (!RequiresGeneration2(realm))
+            throw new InvalidOperationException("Realm executable Generation 2 preparation requires the protected-framexml client requirement.");
         var validation = new ManagedRuntimeValidator().Validate(root, realm, source,
             expectedFinalRuntimePath, validateRealmExecutable: false);
         if (!validation.IsValid)
@@ -234,6 +240,28 @@ public sealed class RealmExecutableService
             !Hash(path).Equals(executable.Sha256, StringComparison.OrdinalIgnoreCase) ||
             !new HardLinkService().IsIndependentFile(path))
             throw new InvalidOperationException("Managed realm executable is corrupt or shares file identity. Launch refused; preserve/move the unexpected file outside the runtime for explicit repair, then prepare again.");
+        return path;
+    }
+
+    public static string SelectLaunchExecutable(string root, string source, RealmInfo realm, ManagedRuntimeManifest manifest)
+    {
+        realm.Client.ThrowIfUnsupportedRequirement();
+        new ManagedRuntimeManifestService().Validate(manifest);
+        if (RequiresGeneration2(realm))
+            return RequireValid(root, source, realm, manifest);
+        if (manifest.RealmExecutable is { Generation: 1 })
+            return RequireValid(root, source, realm, manifest);
+        var baseline = manifest.Files.FirstOrDefault(e =>
+            e.Kind == ManagedRuntimeFileKind.CopiedBaseline &&
+            e.RuntimeRelativePath.Equals(realm.Client.Executable, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException("The isolated runtime does not contain the configured launch executable.");
+        RejectCaseCollision(root, baseline.RuntimeRelativePath);
+        var path = RuntimePaths.Resolve(root, baseline.RuntimeRelativePath);
+        if (!File.Exists(path))
+            throw new InvalidOperationException("Managed launch executable is missing; enter the realm again to prepare it.");
+        if (!Hash(path).Equals(baseline.Sha256, StringComparison.OrdinalIgnoreCase) ||
+            !new HardLinkService().IsIndependentFile(path))
+            throw new InvalidOperationException("Managed launch executable is corrupt or shares file identity. Launch refused; preserve/move the unexpected file outside the runtime for explicit repair, then prepare again.");
         return path;
     }
 

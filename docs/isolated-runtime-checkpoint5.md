@@ -7,6 +7,16 @@ and recorded in `isolated-runtime-checkpoint5-investigation.md`. The implementat
 supports one fixed recipe for one exact source executable. It does not distribute
 client binaries or add configuration for arbitrary executable modification.
 
+> Superseded by Checkpoint 6 (v0.4.1): `docs/isolated-runtime-checkpoint6.md`.
+> This document remains the authoritative specification of the fixed recipe and
+> the recoverable promotion transaction. The Checkpoint 5 policy sentence
+> "Normal preparation advances every Isolated runtime with the supported source
+> to executable Generation 2" no longer holds. Since v0.4.1, generation 2 applies
+> only to Isolated realms whose realm configuration declares `Requirements=
+> protected-framexml`; unselected realms use the copied baseline executable. The
+> recipe, the transaction, and the CP5 safety rules for realms that do require
+> generation 2 are unchanged.
+
 Normal preparation advances every **Isolated** runtime with the supported source
 to executable Generation 2. Generation 1 remains readable/valid for migration but
 is no longer sufficient for Isolated launch. Unsupported sources fail before

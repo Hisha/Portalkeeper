@@ -55,7 +55,8 @@ internal static partial class Program
         var realm = new RealmInfo
         {
             SchemaVersion = 1, Name = args[4], Address = "fixture.invalid", GameRealmName = "Fixture",
-            Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = FrameXmlDigestOverrideRecipe.SourceSha256 }
+            Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = FrameXmlDigestOverrideRecipe.SourceSha256,
+                Requirements = new[] { ClientRequirements.ProtectedFrameXmlRequirement } }
         };
         new RealmExecutableService(at => { if (at == args[5]) Environment.Exit(73); }).Prepare(args[3], args[2], realm);
         return 75;
@@ -106,7 +107,8 @@ internal static partial class Program
             var unsupportedRealm = new RealmInfo
             {
                 Name = "Unsupported", Address = "fixture.invalid", GameRealmName = "Fixture",
-                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = unsupportedLegacy.Client.ExecutableSha256 }
+                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = unsupportedLegacy.Client.ExecutableSha256,
+                    Requirements = new[] { ClientRequirements.ProtectedFrameXmlRequirement } }
             };
             var unsupportedRoot = Path.Combine(root, "unsupported-runtimes");
             Reject("unsupported isolated source fails closed", () => new RealmRuntimePreparationService(unsupportedRoot).PrepareAsync(unsupported, unsupportedRealm).GetAwaiter().GetResult());
@@ -142,7 +144,8 @@ internal static partial class Program
             RealmInfo Realm(string name) => new()
             {
                 SchemaVersion = 1, Name = name, Address = "fixture.invalid", GameRealmName = "Fixture",
-                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = FrameXmlDigestOverrideRecipe.SourceSha256 }
+                Client = new() { RuntimeMode = ClientRuntimeMode.Isolated, ExecutableSha256 = FrameXmlDigestOverrideRecipe.SourceSha256,
+                    Requirements = new[] { ClientRequirements.ProtectedFrameXmlRequirement } }
             };
             string ManifestPath(string runtime) => Path.Combine(runtime, ManagedRuntimeBuilder.ManifestRelativePath);
             ManagedRuntimeManifest Load(string runtime) => manifests.Load(ManifestPath(runtime));

@@ -68,10 +68,18 @@ public sealed class RealmConfigurationService
         if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+[a-z]?$", RegexOptions.CultureInvariant) ||
             !int.TryParse(build, out var buildNumber) || buildNumber <= 0)
             throw new InvalidDataException("Invalid Client Version or Build.");
-        var modeValue = ini["Client"].ContainsKey("RuntimeMode") ? Get("Client", "RuntimeMode") : "Legacy";
+var modeValue = ini["Client"].ContainsKey("RuntimeMode") ? Get("Client", "RuntimeMode") : "Legacy";
         if (!Enum.TryParse<ClientRuntimeMode>(modeValue, true, out var runtimeMode) ||
             !Enum.GetNames<ClientRuntimeMode>().Any(n => n.Equals(modeValue, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Invalid [Client] RuntimeMode; use Legacy or Isolated.");
+        var client = new ClientRequirements
+        {
+            RuntimeMode = runtimeMode, Version = version, Build = build,
+            Executable = ManagedPath.Relative(Get("Client", "Executable", true), true),
+            ExecutableSha256 = ManagedPath.Hash(Get("Client", "ExecutableSHA256")),
+            Requirements = ParseClientRequirements(Get("Client", "Requirements"))
+        };
+        client.ThrowIfUnsupportedRequirement();
         var addons = new List<AddonDefinition>();
         var patches = new List<PatchDefinition>();
         var destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -123,11 +131,28 @@ public sealed class RealmConfigurationService
         return new RealmInfo { SchemaVersion = 1, Name = Get("Realm", "Name", true), GameRealmName = gameRealmName,
             Description = Get("Realm", "Description"),
             WebsiteUrl = ManagedPath.Url(Get("Realm", "WebsiteURL"), true), Address = address, AuthPort = Port("AuthPort"), WorldPort = Port("WorldPort"),
-            Client = new ClientRequirements { RuntimeMode = runtimeMode, Version = version, Build = build, Executable = ManagedPath.Relative(Get("Client", "Executable", true), true),
-                ExecutableSha256 = ManagedPath.Hash(Get("Client", "ExecutableSHA256")) }, MinimumVersion = minimum,
+            Client = client, MinimumVersion = minimum,
             ManifestUrl = ManagedPath.Url(Get("Services", "ManifestURL"), true), NewsUrl = ManagedPath.Url(Get("Services", "NewsURL"), true),
             StatusUrl = ManagedPath.Url(Get("Services", "StatusURL"), true), CalendarUrl = ManagedPath.Url(Get("Services", "CalendarURL"), true),
             ArmoryUrl = ManagedPath.Url(Get("Services", "ArmoryURL"), true), ConfigUrl = ManagedPath.Url(Get("Services", "ConfigURL"), true), Addons = addons, Patches = patches };
+    }
+    internal static IReadOnlyList<string> ParseClientRequirements(string value)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var token in value.Split(new[] { ',', ';' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            foreach (var part in token.Split((char[]?)null,
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (part.Any(char.IsControl))
+                    throw new InvalidDataException("Invalid client requirement: " + part);
+                seen.Add(part.ToLowerInvariant());
+            }
+        }
+        var requirements = seen.ToList();
+        requirements.Sort(StringComparer.Ordinal);
+        return requirements;
     }
     // Legacy is a separate compatibility path; Parse remains strictly Schema v1.
     internal static bool IsLegacy(Dictionary<string, Dictionary<string, string>> ini) =>

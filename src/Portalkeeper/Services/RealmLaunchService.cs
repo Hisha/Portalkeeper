@@ -81,7 +81,7 @@ public sealed class RealmLaunchService
             RealmRuntimeResolver.RequireReady(fullClientDirectory, source, realm);
             var manifest = new ManagedRuntimeManifestService().Load(
                 RuntimePaths.Resolve(fullClientDirectory, ManagedRuntimeBuilder.ManifestRelativePath));
-            wowExecutable = RealmExecutableService.RequireValid(fullClientDirectory, source, realm, manifest);
+            wowExecutable = RealmExecutableService.SelectLaunchExecutable(fullClientDirectory, source, realm, manifest);
         }
         else
         {

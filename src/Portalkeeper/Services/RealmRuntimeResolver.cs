@@ -25,6 +25,7 @@ public sealed class RealmRuntimeResolver
 
     public static void RequireReady(string path, string source, RealmInfo realm)
     {
+        realm.Client.ThrowIfUnsupportedRequirement();
         if (RuntimePaths.IsStagingDirectoryName(Path.GetFileName(Path.TrimEndingDirectorySeparator(path))))
             throw new InvalidOperationException("A staging runtime cannot be used for launch.");
         var pending = RuntimePaths.Resolve(path, RealmExecutableService.PendingRelativePath);
@@ -37,7 +38,7 @@ public sealed class RealmRuntimeResolver
         var manifest = new ManagedRuntimeManifestService().Load(Path.Combine(path, ManagedRuntimeBuilder.ManifestRelativePath));
         if (manifest.ProvisionedConfiguration != RealmRuntimePreparationService.ConfigurationKey(realm))
             throw new InvalidOperationException("Isolated runtime requires realm content preparation.");
-        if (manifest.RealmExecutable?.Generation != 2)
+        if (RealmExecutableService.RequiresGeneration2(realm) && manifest.RealmExecutable?.Generation != 2)
             throw new InvalidOperationException("Isolated runtime requires Generation 2 FrameXML executable preparation.");
         RealmRuntimePreparationService.RequireContent(path, realm);
     }

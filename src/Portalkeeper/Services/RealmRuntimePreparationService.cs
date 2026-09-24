@@ -52,10 +52,13 @@ public sealed class RealmRuntimePreparationService
             return resolver.ResolveEffectiveClientPath(source, realm);
 
         progress?.Report("Validating source client...");
+        realm.Client.ThrowIfUnsupportedRequirement();
         var client = new ClientService().ValidateClient(source, realm.Client);
         if (!client.IsSupportedClient) throw new InvalidOperationException(client.StatusMessage);
+        var generation2 = RealmExecutableService.RequiresGeneration2(realm);
         // Reject unsupported executable identities before downloads or runtime mutations.
-        FrameXmlDigestOverrideRecipe.ValidateSource(File.ReadAllBytes(client.ExecutablePath));
+        if (generation2)
+            FrameXmlDigestOverrideRecipe.ValidateSource(File.ReadAllBytes(client.ExecutablePath));
         var path = resolver.GetRuntimePath(realm);
         if (Directory.Exists(path))
         {
@@ -65,8 +68,11 @@ public sealed class RealmRuntimePreparationService
                     string.Join(Environment.NewLine, validation.Errors));
             // Complete executable migration/recovery before changing content metadata.
             // This preserves the prior manifest and avoids re-provisioning a ready CP4 runtime.
-            progress?.Report("Preparing verified FrameXML realm executable...");
-            new RealmExecutableService().Prepare(path, source, realm);
+            if (generation2)
+            {
+                progress?.Report("Preparing verified FrameXML realm executable...");
+                new RealmExecutableService().Prepare(path, source, realm);
+            }
             try { return resolver.ResolveEffectiveClientPath(source, realm); }
             catch (InvalidOperationException) { /* Valid baseline, content needs preparation. */ }
             var manifests = new ManagedRuntimeManifestService();
@@ -89,9 +95,12 @@ public sealed class RealmRuntimePreparationService
                 async staging =>
                 {
                     await ProvisionAsync(staging, realm, progress).ConfigureAwait(false);
-                    progress?.Report("Preparing verified realm executable...");
-                    new RealmExecutableService().Prepare(staging, source, realm,
-                        expectedFinalRuntimePath: resolver.GetRuntimePath(realm));
+                    if (generation2)
+                    {
+                        progress?.Report("Preparing verified realm executable...");
+                        new RealmExecutableService().Prepare(staging, source, realm,
+                            expectedFinalRuntimePath: resolver.GetRuntimePath(realm));
+                    }
                 }).ConfigureAwait(false);
         }
         progress?.Report("Validating isolated realm client...");
