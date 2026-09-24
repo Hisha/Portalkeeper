@@ -12,7 +12,9 @@ namespace Portalkeeper.Services;
 
 public sealed class AddonInstallerService
 {
-    private static readonly HttpClient HttpClient = new();
+    private static readonly HttpClient DefaultHttpClient = new();
+    private readonly HttpClient _httpClient;
+    public AddonInstallerService(HttpClient? httpClient = null) => _httpClient = httpClient ?? DefaultHttpClient;
     private readonly AddonInstallStateService _installStateService = new();
 
     public async Task InstallOrUpdateAsync(
@@ -110,6 +112,7 @@ public sealed class AddonInstallerService
             foreach (var folder in installedFolders)
             {
                 var destinationDirectory = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", folder));
+                ManagedRuntimeWriteGuard.Check(clientDirectory, destinationDirectory);
                 destinationDirectories.Add(destinationDirectory);
             }
 
@@ -235,6 +238,7 @@ public sealed class AddonInstallerService
             foreach (var folderName in state.InstalledFolders)
             {
                 var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", folderName));
+                ManagedRuntimeWriteGuard.Check(clientDirectory, destination);
                 if (!Directory.Exists(destination)) continue;
                 
                 var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), folderName));
@@ -246,6 +250,7 @@ public sealed class AddonInstallerService
         {
             // Fallback to original single-folder behavior for backward compatibility
             var destination = ManagedPath.Resolve(clientDirectory, Path.Combine("Interface", "AddOns", addon.Folder));
+            ManagedRuntimeWriteGuard.Check(clientDirectory, destination);
             if (!Directory.Exists(destination)) return;
             var backup = ManagedPath.Resolve(clientDirectory, Path.Combine(".portalkeeper", "backups", addon.Id, Guid.NewGuid().ToString("N"), addon.Folder));
             Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
@@ -302,7 +307,7 @@ public sealed class AddonInstallerService
 
     }
 
-    private static async Task DownloadAsync(
+    private async Task DownloadAsync(
         string location,
         string destinationPath)
     {
@@ -310,7 +315,7 @@ public sealed class AddonInstallerService
             (uri.Scheme == Uri.UriSchemeHttp ||
              uri.Scheme == Uri.UriSchemeHttps))
         {
-            using var response = await HttpClient.GetAsync(
+            using var response = await _httpClient.GetAsync(
                 uri,
                 HttpCompletionOption.ResponseHeadersRead);
 

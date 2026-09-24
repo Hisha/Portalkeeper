@@ -55,6 +55,7 @@ public sealed class PatchService
         if (allocations is not null) allocations = Allocations(root, patch, realm); // Reload under the client lock.
         var owned = allocations?.Find(patch.Id);
         var destination = allocations is null ? FileDestination(root, patch) : owned ?? allocations.Choose(patch.Id);
+        ManagedRuntimeWriteGuard.Check(root, destination);
         // Explicit action may update a hashless patch; hashed valid files need no download.
         if (patch.Sha256.Length > 0 && File.Exists(destination) && Matches(destination, patch.Sha256)) return;
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
@@ -75,6 +76,7 @@ public sealed class PatchService
                 if (!string.Equals(current, destination, StringComparison.Ordinal))
                     throw new InvalidDataException("WoW patch destination changed during download. Retry installation.");
             }
+            ManagedRuntimeWriteGuard.Check(root, destination);
             Backup(root, destination);
             // A newly chosen slot is never replaced, even if a foreign file appeared
             // after scanning. Existing allocations retain the shared replacement path.
@@ -101,6 +103,7 @@ public sealed class PatchService
         using var operationLock = allocations is null ? null : WowPatchAllocationStore.AcquireLock(root);
         var destination = allocations is null ? FileDestination(root, patch) : Allocations(root, patch, realm)!.Find(patch.Id);
         if (destination is null || !File.Exists(destination)) return;
+        ManagedRuntimeWriteGuard.Check(root, destination);
         Backup(root, destination);
         File.Delete(destination);
         // Explicit removal retains the allocation so repair reuses the same slot.

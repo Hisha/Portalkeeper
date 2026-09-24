@@ -68,6 +68,10 @@ public sealed class RealmConfigurationService
         if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+[a-z]?$", RegexOptions.CultureInvariant) ||
             !int.TryParse(build, out var buildNumber) || buildNumber <= 0)
             throw new InvalidDataException("Invalid Client Version or Build.");
+        var modeValue = ini["Client"].ContainsKey("RuntimeMode") ? Get("Client", "RuntimeMode") : "Legacy";
+        if (!Enum.TryParse<ClientRuntimeMode>(modeValue, true, out var runtimeMode) ||
+            !Enum.GetNames<ClientRuntimeMode>().Any(n => n.Equals(modeValue, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("Invalid [Client] RuntimeMode; use Legacy or Isolated.");
         var addons = new List<AddonDefinition>();
         var patches = new List<PatchDefinition>();
         var destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -119,7 +123,7 @@ public sealed class RealmConfigurationService
         return new RealmInfo { SchemaVersion = 1, Name = Get("Realm", "Name", true), GameRealmName = gameRealmName,
             Description = Get("Realm", "Description"),
             WebsiteUrl = ManagedPath.Url(Get("Realm", "WebsiteURL"), true), Address = address, AuthPort = Port("AuthPort"), WorldPort = Port("WorldPort"),
-            Client = new ClientRequirements { Version = version, Build = build, Executable = ManagedPath.Relative(Get("Client", "Executable", true), true),
+            Client = new ClientRequirements { RuntimeMode = runtimeMode, Version = version, Build = build, Executable = ManagedPath.Relative(Get("Client", "Executable", true), true),
                 ExecutableSha256 = ManagedPath.Hash(Get("Client", "ExecutableSHA256")) }, MinimumVersion = minimum,
             ManifestUrl = ManagedPath.Url(Get("Services", "ManifestURL"), true), NewsUrl = ManagedPath.Url(Get("Services", "NewsURL"), true),
             StatusUrl = ManagedPath.Url(Get("Services", "StatusURL"), true), CalendarUrl = ManagedPath.Url(Get("Services", "CalendarURL"), true),

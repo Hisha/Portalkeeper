@@ -15,13 +15,15 @@ namespace Portalkeeper.RuntimeTests;
 //
 // The battery runs without a real WoW client (synthetic fixture client). The
 // `real` subcommand exercises the actual client + realm wiring end to end.
-internal static class Program
+internal static partial class Program
 {
     private static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] is "real" or "--real")
             return RunRealClient(args);
 
+        if (args.Length > 0 && args[0] == "checkpoint3")
+            return RunCheckpoint3().GetAwaiter().GetResult();
         return RunBattery();
     }
 

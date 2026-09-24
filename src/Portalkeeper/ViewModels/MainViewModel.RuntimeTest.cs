@@ -138,9 +138,17 @@ public sealed partial class MainViewModel
                 return;
             }
 
+            if (_realmInfo.Client.RuntimeMode == Portalkeeper.Models.ClientRuntimeMode.Isolated)
+            {
+                var source = ClientPath;
+                var realm = _realmInfo;
+                var root = System.IO.Path.GetDirectoryName(_constructedRuntimePath);
+                await Task.Run(() => new RealmRuntimePreparationService(root).PrepareAsync(source, realm));
+            }
+
             var result = _realmLaunchService.PrepareAndLaunch(
                 _constructedRuntimePath,
-                _realmInfo);
+                _realmInfo, ClientPath);
 
             IsGameRunning = true;
             IsLaunching = false;

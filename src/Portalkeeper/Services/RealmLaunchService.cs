@@ -52,7 +52,8 @@ public sealed class RealmLaunchService
 
     public RealmLaunchResult PrepareAndLaunch(
         string clientDirectory,
-        RealmInfo realm)
+        RealmInfo realm,
+        string? sourceClientDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(clientDirectory))
             throw new InvalidOperationException(
@@ -76,14 +77,29 @@ public sealed class RealmLaunchService
             ?? throw new FileNotFoundException(
                 "Wow.exe was not found in the configured client directory.");
 
+        if (realm.Client.RuntimeMode == ClientRuntimeMode.Isolated)
+            RealmRuntimeResolver.RequireReady(fullClientDirectory,
+                sourceClientDirectory ?? throw new InvalidOperationException("An isolated launch requires its source client."), realm);
+
         var localeDirectory = FindLocaleDirectory(fullClientDirectory);
         var locale = Path.GetFileName(localeDirectory);
         var realmlistPath = Path.Combine(localeDirectory, "realmlist.wtf");
 
+        // A managed launch must not follow user-created links outside its root
+        // or replace a baseline entry. Legacy behavior is unchanged.
+        if (File.Exists(Path.Combine(fullClientDirectory, ManagedRuntimeBuilder.ManifestRelativePath)))
+        {
+            ManagedRuntimeWriteGuard.Check(fullClientDirectory,
+                ManagedPath.Resolve(fullClientDirectory, Path.GetRelativePath(fullClientDirectory, realmlistPath)));
+            ManagedRuntimeWriteGuard.Check(fullClientDirectory,
+                ManagedPath.Resolve(fullClientDirectory, "WTF/Config.wtf"));
+            ManagedPath.Resolve(fullClientDirectory, ".portalkeeper/backups/realmlist");
+            ManagedPath.Resolve(fullClientDirectory, ".portalkeeper/backups/config");
+        }
         WriteRealmlist(realmlistPath, realm.Address, fullClientDirectory);
         if (!string.IsNullOrWhiteSpace(realm.GameRealmName))
             WriteGameRealmName(Path.Combine(fullClientDirectory, "WTF", "Config.wtf"), realm.GameRealmName, fullClientDirectory);
-        var process = LaunchWow(wowExecutable, fullClientDirectory);
+        var process = LaunchWow(wowExecutable, fullClientDirectory, sourceClientDirectory, realm.Client.Executable);
 
         return new RealmLaunchResult
         {
@@ -300,9 +316,17 @@ public sealed class RealmLaunchService
             .Trim();
     }
 
-    private static Process LaunchWow(
-        string wowExecutable,
-        string clientDirectory)
+    private static Process LaunchWow(string wowExecutable, string clientDirectory,
+        string? sourceClientDirectory, string executableName)
+    {
+        var process = Process.Start(CreateLaunchStartInfo(wowExecutable, clientDirectory, sourceClientDirectory, executableName));
+        return process ?? throw new InvalidOperationException("The World of Warcraft process could not be started.");
+    }
+
+    // Resolve Wine from the source executable, but execute the effective runtime.
+    // The explicit developer launch and normal ENTER REALM share this path.
+    public static ProcessStartInfo CreateLaunchStartInfo(string wowExecutable, string clientDirectory,
+        string? sourceClientDirectory = null, string executableName = "Wow.exe")
     {
         ProcessStartInfo startInfo;
 
@@ -332,7 +356,10 @@ public sealed class RealmLaunchService
                 UseShellExecute = false
             };
 
-            var winePrefix = FindWinePrefix(wowExecutable);
+            var environmentExecutable = sourceClientDirectory is null ? wowExecutable :
+                ClientService.FindWowExecutable(sourceClientDirectory, executableName)
+                ?? throw new FileNotFoundException("The source launch executable was not found.");
+            var winePrefix = FindWinePrefix(environmentExecutable);
 
             if (!string.IsNullOrWhiteSpace(winePrefix))
                 startInfo.Environment["WINEPREFIX"] = winePrefix;
@@ -345,13 +372,7 @@ public sealed class RealmLaunchService
                 "Portalkeeper launching is currently supported on Windows and Linux.");
         }
 
-        var process = Process.Start(startInfo);
-
-        if (process is null)
-            throw new InvalidOperationException(
-                "The World of Warcraft process could not be started.");
-
-        return process;
+        return startInfo;
     }
 
     public async Task WaitForGameExitAsync(RealmLaunchResult result)

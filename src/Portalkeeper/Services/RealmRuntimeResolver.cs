@@ -1,20 +1,40 @@
+using System;
 using System.IO;
 using Portalkeeper.Models;
 using Portalkeeper.Models.Runtime;
 
 namespace Portalkeeper.Services;
 
-// Determines the effective client root operated on for a realm. Checkpoint 1
-// always resolves to the source client path so no behavior changes; this method
-// is the seam through which an isolated per-realm runtime can be supplied later.
 public sealed class RealmRuntimeResolver
 {
+    private readonly string? _runtimeRoot;
+    public RealmRuntimeResolver(string? runtimeRoot = null) => _runtimeRoot = runtimeRoot;
+
+    // Candidate path is for read-only inspection/preparation, never a launch decision.
+    public string GetRuntimePath(RealmInfo realm) => RuntimePaths.RuntimeRootOfRealm(
+        _runtimeRoot ?? RuntimePaths.DefaultRuntimeRoot(), RealmIdentity.FromRealm(realm));
+
     public string ResolveEffectiveClientPath(string sourceClientPath, RealmInfo? realm = null)
     {
-        if (string.IsNullOrWhiteSpace(sourceClientPath))
-            return sourceClientPath;
+        if (realm?.Client.RuntimeMode != ClientRuntimeMode.Isolated)
+            return string.IsNullOrWhiteSpace(sourceClientPath) ? sourceClientPath : Path.GetFullPath(sourceClientPath);
+        var path = GetRuntimePath(realm);
+        RequireReady(path, sourceClientPath, realm);
+        return path;
+    }
 
-        return Path.GetFullPath(sourceClientPath);
+    public static void RequireReady(string path, string source, RealmInfo realm)
+    {
+        if (RuntimePaths.IsStagingDirectoryName(Path.GetFileName(Path.TrimEndingDirectorySeparator(path))))
+            throw new InvalidOperationException("A staging runtime cannot be used for launch.");
+        var validation = new ManagedRuntimeValidator().Validate(path, realm, source);
+        if (!validation.IsValid)
+            throw new InvalidOperationException("Isolated runtime needs preparation or repair: " +
+                string.Join(Environment.NewLine, validation.Errors));
+        var manifest = new ManagedRuntimeManifestService().Load(Path.Combine(path, ManagedRuntimeBuilder.ManifestRelativePath));
+        if (manifest.ProvisionedConfiguration != RealmRuntimePreparationService.ConfigurationKey(realm))
+            throw new InvalidOperationException("Isolated runtime requires realm content preparation.");
+        RealmRuntimePreparationService.RequireContent(path, realm);
     }
 
     public RealmClientRoots ResolveRoots(string sourceClientPath, RealmInfo? realm = null) =>

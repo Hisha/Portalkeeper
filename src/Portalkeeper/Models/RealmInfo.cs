@@ -26,8 +26,11 @@ public sealed class RealmInfo
     public IReadOnlyList<PatchDefinition> Patches { get; init; } = Array.Empty<PatchDefinition>();
     public bool IsConfigured => (SchemaVersion == 1 || (SchemaVersion == 0 && IsLegacyCompatibility)) && Name.Length > 0 && Address.Length > 0;
 }
+public enum ClientRuntimeMode { Legacy, Isolated }
+
 public sealed class ClientRequirements
 {
+    public ClientRuntimeMode RuntimeMode { get; init; } = ClientRuntimeMode.Legacy;
     public string Version { get; init; } = "3.3.5a";
     public string Build { get; init; } = "12340";
     public string Executable { get; init; } = "Wow.exe";

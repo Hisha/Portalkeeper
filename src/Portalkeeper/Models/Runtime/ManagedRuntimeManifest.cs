@@ -5,9 +5,9 @@ namespace Portalkeeper.Models.Runtime;
 
 public enum ManagedRuntimeState { Incomplete, Complete }
 
-// Persisted descriptor for a future per-realm managed runtime. Checkpoint 1
-// introduces the model and serialization support only; no runtime manifests
-// are written by normal application flow yet. The RealmId currently reuses the
+// Persisted descriptor for a per-realm managed runtime. Complete describes
+// baseline construction; ProvisionedConfiguration additionally gates normal
+// isolated operation after required realm content has been installed. The RealmId currently reuses the
 // existing logical realm identity and is designed to accept an
 // administrator-provided stable RealmID/GUID later without a rewrite.
 public sealed class ManagedRuntimeManifest
@@ -15,6 +15,9 @@ public sealed class ManagedRuntimeManifest
     public const int CurrentSchemaVersion = 1;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
+
+    // Empty for Checkpoint 2 baseline-only builds; populated only after provisioning.
+    public string ProvisionedConfiguration { get; set; } = string.Empty;
 
     public string RealmId { get; init; } = string.Empty;
 

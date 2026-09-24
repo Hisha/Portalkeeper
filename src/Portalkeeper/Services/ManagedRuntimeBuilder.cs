@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using Portalkeeper.Models;
 using Portalkeeper.Models.Runtime;
 
@@ -54,6 +55,7 @@ public sealed class ManagedRuntimeBuildResult
 //  8. hard-link eligible locale files
 //  9. hard-link eligible Blizzard baseline addon files
 // 10. write the managed runtime manifest (Complete) into staging
+//     optionally provision required realm content and record its configuration
 // 11. validate the constructed staging runtime
 // 12. atomically promote staging to the final runtime location
 //
@@ -77,7 +79,11 @@ public sealed class ManagedRuntimeBuilder
     private readonly ManagedRuntimeManifestService _manifestService = new();
     private readonly ManagedRuntimeValidator _validator = new();
 
-    public ManagedRuntimeBuildResult Build(ManagedRuntimeBuildOptions options)
+    public ManagedRuntimeBuildResult Build(ManagedRuntimeBuildOptions options) =>
+        BuildAsync(options).GetAwaiter().GetResult();
+
+    public async Task<ManagedRuntimeBuildResult> BuildAsync(ManagedRuntimeBuildOptions options,
+        Func<string, Task>? provision = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.SourceClientPath);
@@ -120,7 +126,8 @@ public sealed class ManagedRuntimeBuilder
                 ? RuntimePaths.DefaultRuntimeRoot()
                 : options.RuntimeRoot);
 
-        if (RuntimePaths.IsWithin(sourceClientPath, runtimeRoot) ||
+        if (RuntimePaths.SamePath(sourceClientPath, runtimeRoot) ||
+            RuntimePaths.IsWithin(sourceClientPath, runtimeRoot) ||
             RuntimePaths.IsWithin(runtimeRoot, sourceClientPath))
         {
             throw new InvalidOperationException(
@@ -161,6 +168,13 @@ public sealed class ManagedRuntimeBuilder
             _manifestService.Save(
                 runtimeManifest,
                 Path.Combine(stagingPath, ManifestRelativePath));
+
+            if (provision is not null)
+            {
+                await provision(stagingPath).ConfigureAwait(false);
+                runtimeManifest.ProvisionedConfiguration = RealmRuntimePreparationService.ConfigurationKey(options.Realm);
+                _manifestService.Save(runtimeManifest, Path.Combine(stagingPath, ManifestRelativePath));
+            }
 
             var stagedValidation = _validator.Validate(
                 stagingPath, options.Realm, sourceClientPath, expectedFinalRuntimePath: finalPath);
@@ -268,6 +282,11 @@ public sealed class ManagedRuntimeBuilder
                 // hash for the copied launch executable in the runtime.
                 sha256 = realm.Client.ExecutableSha256;
             }
+
+            // Copied files have no link identity to validate; record their bytes
+            // even when the realm does not publish an executable hash.
+            if (sha256.Length == 0 && kind == ManagedRuntimeFileKind.CopiedBaseline)
+                sha256 = ComputeSha256(sourcePath);
 
             entries.Add(new ManagedRuntimeFileEntry
             {

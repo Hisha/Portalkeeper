@@ -35,7 +35,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             throw new InvalidOperationException("Wait for the current operation and close World of Warcraft before modifying components.");
         _isManagingComponents = true;
         OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm));
-        try { await operation(); }
+        try { await PrepareIsolatedRuntimeAsync(); await operation(); }
         finally { _isManagingComponents = false; OnPropertyChanged(nameof(CanEnterRealm)); OnPropertyChanged(nameof(CanSwitchRealm)); UpdateLaunchReadinessStatus(); }
     }
     private RealmInfo? _realmInfo;
@@ -64,7 +64,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public string RealmConnection => _realmInfo is null ? "" : $"{_realmInfo.Address} • Auth {_realmInfo.AuthPort} • World {_realmInfo.WorldPort}";
     private void RefreshPatches()
     {
-        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(EffectiveClientPath, p, _realmInfo)).ToArray() ?? Array.Empty<PatchInfo>();
+        Patches = _realmInfo?.Patches.Select(p => _patchService.Inspect(ComponentInspectionPath, p, _realmInfo)).ToArray() ?? Array.Empty<PatchInfo>();
         OnPropertyChanged(nameof(Patches));
         OnPropertyChanged(nameof(HasManagedPatches));
         OnPropertyChanged(nameof(PatchesReady));
@@ -412,11 +412,25 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    // The client root the launcher actually operates on. Checkpoint 1 resolves
-    // this to the source ClientPath; an isolated realm runtime can supply a
-    // different effective root later without changing the persisted setting.
+    // Only the resolver can authorize an effective isolated root.
     public string EffectiveClientPath =>
         _realmRuntimeResolver.ResolveEffectiveClientPath(ClientPath, _realmInfo);
+
+    private bool IsIsolatedRealm => _realmInfo?.Client.RuntimeMode == ClientRuntimeMode.Isolated;
+    private string ComponentInspectionPath => IsIsolatedRealm
+        ? _realmRuntimeResolver.GetRuntimePath(_realmInfo!) : ClientPath;
+
+    private async Task PrepareIsolatedRuntimeAsync()
+    {
+        if (!IsIsolatedRealm || _realmInfo is null) return;
+        LaunchStatus = "Preparing isolated realm client; your original installation will not be modified...";
+        var realm = _realmInfo;
+        var source = ClientPath;
+        var progress = new Progress<string>(message => LaunchStatus = message);
+        await Task.Run(() => new RealmRuntimePreparationService().PrepareAsync(source, realm, progress));
+        OnPropertyChanged(nameof(EffectiveClientPath));
+        RefreshPatches();
+    }
 
     public string ClientStatus
     {
@@ -477,7 +491,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }
 
     public string LaunchEnvironmentStatus =>
-        _realmLaunchService.GetLaunchEnvironmentSummary(EffectiveClientPath);
+        _realmLaunchService.GetLaunchEnvironmentSummary(ClientPath);
 
     // ---------------------------------------------------------
     // Launch readiness
@@ -538,8 +552,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         !_isManagingComponents &&
         ClientValid &&
         RealmConfigured &&
-        AddonsReady &&
-        PatchesReady &&
+        (IsIsolatedRealm || (AddonsReady && PatchesReady)) &&
         !IsCheckingAddons &&
         !IsLaunching &&
         !IsGameRunning;
@@ -556,15 +569,19 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            ApplyClientInfo(_clientService.ValidateClient(EffectiveClientPath, _realmInfo.Client));
+            ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
+            await PrepareIsolatedRuntimeAsync();
+            var effectiveClient = _clientService.ValidateClient(EffectiveClientPath, _realmInfo.Client);
+            if (!effectiveClient.IsSupportedClient) throw new InvalidOperationException(effectiveClient.StatusMessage);
             RefreshPatches();
             if (!ClientValid || !PatchesReady) throw new InvalidOperationException(!ClientValid ? ClientStatus : "Required patches need attention.");
-            var currentAddons = _addonService.InspectAddons(EffectiveClientPath, _addonManifest!);
+            var currentAddons = _addonService.InspectAddons(EffectiveClientPath, _addonManifest ??
+                new AddonManifest { Addons = _realmInfo.Addons.ToList() });
             var unsatisfied = currentAddons.Where(a => a.Definition.Required && (!a.IsInstalled || a.IsUpdateAvailable)).ToArray();
             if (unsatisfied.Length > 0) throw new InvalidOperationException("Required addons need attention: " + string.Join(", ", unsatisfied.Select(a => a.Definition.Name)));
             result = _realmLaunchService.PrepareAndLaunch(
                 EffectiveClientPath,
-                _realmInfo);
+                _realmInfo, ClientPath);
 
             IsGameRunning = true;
             IsLaunching = false;
@@ -779,7 +796,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _realmHealthState = RealmHealthState.Unknown;
             if (_realmInfo is not null)
             {
-                ApplyClientInfo(_clientService.ValidateClient(EffectiveClientPath, _realmInfo.Client));
+                ApplyClientInfo(_clientService.ValidateClient(ClientPath, _realmInfo.Client));
                 if (ArmoryAvailable) _ = LoadArmoryAsync();
             }
         }
@@ -924,7 +941,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
 
             _addons =
                 _addonService.InspectAddons(
-                    EffectiveClientPath,
+                    ComponentInspectionPath,
                     _addonManifest)
                 .Select(info => realmSourceErrors.TryGetValue(info.Definition.Id, out var error)
                     ? new AddonInfo { Definition = info.Definition, DirectoryPath = info.DirectoryPath,
@@ -1043,6 +1060,12 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         if (IsCheckingAddons)
         {
             LaunchStatus = "Checking managed addons...";
+            return;
+        }
+
+        if (IsIsolatedRealm)
+        {
+            LaunchStatus = "ENTER REALM prepares and validates a realm-specific client without modifying your original installation.";
             return;
         }
 

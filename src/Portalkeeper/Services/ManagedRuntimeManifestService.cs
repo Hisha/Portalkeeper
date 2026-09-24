@@ -101,8 +101,7 @@ public sealed class ManagedRuntimeManifestService
         }
     }
 
-    // These file helpers are plumbing only; normal application flow does not
-    // write managed runtime manifests until runtime construction is implemented.
+    // Atomic replacement keeps lifecycle updates readable after interruption.
     public ManagedRuntimeManifest Load(string path) =>
         Deserialize(File.ReadAllText(path));
 
@@ -116,6 +115,12 @@ public sealed class ManagedRuntimeManifestService
         if (!string.IsNullOrWhiteSpace(directory))
             Directory.CreateDirectory(directory);
 
-        File.WriteAllText(path, Serialize(manifest));
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(temporary, Serialize(manifest));
+            File.Move(temporary, path, true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 }
