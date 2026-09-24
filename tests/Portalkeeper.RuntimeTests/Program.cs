@@ -24,6 +24,10 @@ internal static partial class Program
 
         if (args.Length > 0 && args[0] == "checkpoint3")
             return RunCheckpoint3().GetAwaiter().GetResult();
+        if (args.Length > 0 && args[0] == "checkpoint5-crash")
+            return RunCheckpoint5Crash(args);
+        if (args.Length > 0 && args[0] == "checkpoint5")
+            return RunCheckpoint5().GetAwaiter().GetResult();
         if (args.Length > 0 && args[0] == "checkpoint4")
             return RunCheckpoint4().GetAwaiter().GetResult();
         return RunBattery();

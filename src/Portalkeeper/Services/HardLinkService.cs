@@ -154,12 +154,14 @@ public sealed class HardLinkService
 
     // Fail closed if identity/link-count inspection is unavailable. A generated
     // executable must own its inode/file-id exclusively, not just differ from Wow.exe.
-    public bool IsIndependentFile(string path)
+    public bool IsIndependentFile(string path) => HasLinkCount(path, 1);
+
+    internal bool HasLinkCount(string path, uint expected)
     {
         if (OperatingSystem.IsWindows())
-            return WindowsNative.TryGetFileId(path)?.Links == 1;
+            return WindowsNative.TryGetFileId(path)?.Links == expected;
         if (OperatingSystem.IsLinux())
-            return LinuxNative.TryGetFileId(path)?.Links == 1;
+            return LinuxNative.TryGetFileId(path)?.Links == expected;
         return false;
     }
 

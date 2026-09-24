@@ -54,6 +54,8 @@ public sealed class RealmRuntimePreparationService
         progress?.Report("Validating source client...");
         var client = new ClientService().ValidateClient(source, realm.Client);
         if (!client.IsSupportedClient) throw new InvalidOperationException(client.StatusMessage);
+        // Reject unsupported executable identities before downloads or runtime mutations.
+        FrameXmlDigestOverrideRecipe.ValidateSource(File.ReadAllBytes(client.ExecutablePath));
         var path = resolver.GetRuntimePath(realm);
         if (Directory.Exists(path))
         {
@@ -61,6 +63,10 @@ public sealed class RealmRuntimePreparationService
             if (!validation.IsValid)
                 throw new InvalidOperationException("Existing isolated runtime needs explicit repair/rebuild: " +
                     string.Join(Environment.NewLine, validation.Errors));
+            // Complete executable migration/recovery before changing content metadata.
+            // This preserves the prior manifest and avoids re-provisioning a ready CP4 runtime.
+            progress?.Report("Preparing verified FrameXML realm executable...");
+            new RealmExecutableService().Prepare(path, source, realm);
             try { return resolver.ResolveEffectiveClientPath(source, realm); }
             catch (InvalidOperationException) { /* Valid baseline, content needs preparation. */ }
             var manifests = new ManagedRuntimeManifestService();
@@ -69,8 +75,6 @@ public sealed class RealmRuntimePreparationService
             manifest.ProvisionedConfiguration = "";
             manifests.Save(manifest, manifestPath);
             await ProvisionAsync(path, realm, progress).ConfigureAwait(false);
-            progress?.Report("Preparing verified realm executable...");
-            new RealmExecutableService().Prepare(path, source, realm);
             manifest = manifests.Load(manifestPath);
             validation = new ManagedRuntimeValidator().Validate(path, realm, source);
             if (!validation.IsValid) throw new InvalidOperationException(string.Join(Environment.NewLine, validation.Errors));

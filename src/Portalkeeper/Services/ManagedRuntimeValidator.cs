@@ -111,6 +111,13 @@ public sealed class ManagedRuntimeValidator
                 errors.Add($"The launch executable '{manifest.LaunchExecutableRelativePath}' does not exist in the runtime.");
         }
 
+        if (validateRealmExecutable)
+        {
+            var pending = TryResolve(fullRuntimePath, RealmExecutableService.PendingRelativePath, errors, "Executable transaction");
+            if (pending is not null && (File.Exists(pending) || Directory.Exists(pending)))
+                errors.Add("Realm executable generation is pending recovery; enter the realm again to prepare it.");
+        }
+
         ValidateFiles(fullRuntimePath, sourceClientPath, manifest, errors, validateRealmExecutable);
         if (validateRealmExecutable && manifest.RealmExecutable is not null)
         {

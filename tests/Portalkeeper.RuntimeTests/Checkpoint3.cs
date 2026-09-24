@@ -21,7 +21,12 @@ internal static partial class Program
         try
         {
             var source = Path.Combine(root, "source");
-            var legacy = CreateFixtureClient(source);
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PORTALKEEPER_CP5_EXE")))
+            {
+                Console.WriteLine("SKIP  isolated preparation regression suite requires PORTALKEEPER_CP5_EXE under the exact CP5 source policy");
+                return 0;
+            }
+            var legacy = CreateSupportedFixtureClient(source);
             var storage = Path.Combine(root, "runtimes");
             var resolver = new RealmRuntimeResolver(storage);
             var patchBytes = new byte[] { 77, 80, 81, 65 };

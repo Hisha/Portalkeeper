@@ -111,8 +111,7 @@ public sealed class ManagedRuntimeManifestService
             ManagedPath.Hash(executable.SourceSha256);
             ManagedPath.Hash(executable.Sha256);
             if (executable.SourceSha256.Length == 0 || executable.Sha256.Length == 0 ||
-                executable.Generation != 1 || executable.State != RealmExecutableState.BaselineCopy ||
-                !executable.Sha256.Equals(executable.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                !ValidExecutableGeneration(executable) ||
                 !executable.SourceSha256.Equals(manifest.SourceExecutableSha256, StringComparison.OrdinalIgnoreCase) ||
                 executable.RuntimeRelativePath != RealmExecutableService.FileName(manifest.RealmName, manifest.RealmId) ||
                 manifest.LaunchExecutableRelativePath != executable.RuntimeRelativePath)
@@ -124,10 +123,23 @@ public sealed class ManagedRuntimeManifestService
             if (owned is null || owned.Kind != ManagedRuntimeFileKind.RealmOwned ||
                 !owned.Sha256.Equals(executable.Sha256, StringComparison.OrdinalIgnoreCase) ||
                 baseline is null || baseline.Kind != ManagedRuntimeFileKind.CopiedBaseline ||
+                !baseline.Sha256.Equals(executable.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
                 !baseline.SourceRelativePath.Equals(executable.SourceRelativePath, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Realm executable must have a separate owned file entry and a copied source baseline.");
         }
     }
+
+    private static bool ValidExecutableGeneration(ManagedRealmExecutable executable) => executable.Generation switch
+    {
+        1 => executable.State == RealmExecutableState.BaselineCopy && executable.RecipeId is null &&
+             executable.RecipeVersion is null && executable.Sha256.Equals(executable.SourceSha256, StringComparison.OrdinalIgnoreCase) &&
+             !executable.Sha256.Equals(FrameXmlDigestOverrideRecipe.OutputSha256, StringComparison.OrdinalIgnoreCase),
+        2 => executable.State == RealmExecutableState.FrameXmlDigestOverride &&
+             executable.RecipeId == FrameXmlDigestOverrideRecipe.Id && executable.RecipeVersion == FrameXmlDigestOverrideRecipe.Version &&
+             executable.SourceSha256.Equals(FrameXmlDigestOverrideRecipe.SourceSha256, StringComparison.OrdinalIgnoreCase) &&
+             executable.Sha256.Equals(FrameXmlDigestOverrideRecipe.OutputSha256, StringComparison.OrdinalIgnoreCase),
+        _ => false
+    };
 
     // Atomic replacement keeps lifecycle updates readable after interruption.
     public ManagedRuntimeManifest Load(string path) =>
@@ -146,7 +158,12 @@ public sealed class ManagedRuntimeManifestService
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            File.WriteAllText(temporary, Serialize(manifest));
+            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(Serialize(manifest));
+                output.Write(bytes);
+                output.Flush(flushToDisk: true);
+            }
             File.Move(temporary, path, true);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }

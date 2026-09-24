@@ -20,7 +20,12 @@ internal static partial class Program
         try
         {
             var source = Path.Combine(root, "source");
-            var legacy = CreateFixtureClient(source);
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PORTALKEEPER_CP5_EXE")))
+            {
+                Console.WriteLine("SKIP  isolated preparation regression suite requires PORTALKEEPER_CP5_EXE under the exact CP5 source policy");
+                return 0;
+            }
+            var legacy = CreateSupportedFixtureClient(source);
             var sourceExe = Path.Combine(source, "Wow.exe");
             var before = Directory.GetFiles(source, "*", SearchOption.AllDirectories).ToDictionary(p => p, Hash);
             var sourceBytes = File.ReadAllBytes(sourceExe);
@@ -45,10 +50,10 @@ internal static partial class Program
             var manifest = Load(runtime);
             Check("isolated runtime creates realm executable", File.Exists(exe) && exe != Baseline(runtime));
             Check("baseline Wow.exe remains present and unchanged", Hash(Baseline(runtime)) == Hash(sourceExe));
-            Check("realm executable has source contents and hash", Hash(exe) == Hash(sourceExe) && File.ReadAllBytes(exe).SequenceEqual(sourceBytes));
+            Check("realm executable has fixed generation 2 hash", Hash(exe) == FrameXmlDigestOverrideRecipe.OutputSha256);
             Check("realm executable is an independent file", links.IsIndependentFile(exe) && !links.AreSameFile(exe, sourceExe) && !links.AreSameFile(exe, Baseline(runtime)));
             Check("ownership, provenance, hashes, launch target and baseline state persist", manifest.RealmExecutable is
-                { SourceRelativePath: "Wow.exe", Generation: 1, State: RealmExecutableState.BaselineCopy } &&
+                { SourceRelativePath: "Wow.exe", Generation: 2, State: RealmExecutableState.FrameXmlDigestOverride } &&
                 manifest.RealmExecutable.SourceSha256 == Hash(sourceExe) && manifest.RealmExecutable.Sha256 == Hash(exe) &&
                 manifest.Files.Single(e => e.RuntimeRelativePath == manifest.RealmExecutable.RuntimeRelativePath).Kind == ManagedRuntimeFileKind.RealmOwned &&
                 manifest.LaunchExecutableRelativePath == Path.GetFileName(exe));
@@ -91,7 +96,7 @@ internal static partial class Program
             await Reject("missing executable has no resolver fallback", () => Task.FromResult(resolver.ResolveEffectiveClientPath(source, realm)));
             await Reject("missing executable has no launch fallback", () => Task.FromResult(new RealmLaunchService().PrepareAndLaunch(runtime, realm, source)));
             await preparation.PrepareAsync(source, realm);
-            Check("missing owned executable regenerates safely", File.Exists(exe) && Hash(exe) == Hash(sourceExe) && links.IsIndependentFile(exe));
+            Check("missing owned executable regenerates safely", File.Exists(exe) && Hash(exe) == FrameXmlDigestOverrideRecipe.OutputSha256 && links.IsIndependentFile(exe));
             File.WriteAllText(exe, "unexpected changed executable");
             var corruptHash = Hash(exe);
             Check("modifying generated file cannot mutate source or baseline", Hash(sourceExe) == legacy.Client.ExecutableSha256 && Hash(Baseline(runtime)) == Hash(sourceExe));
@@ -101,7 +106,7 @@ internal static partial class Program
             Check("unexpected bytes preserved after failed preparation", Hash(exe) == corruptHash);
             File.Move(exe, Path.Combine(root, "preserved-corrupt.exe")); // Explicit test/user repair, not application cleanup.
             await preparation.PrepareAsync(source, realm);
-            Check("explicit recovery from preserved corruption", Hash(exe) == Hash(sourceExe));
+            Check("explicit recovery from preserved corruption", Hash(exe) == FrameXmlDigestOverrideRecipe.OutputSha256);
 
             File.Delete(exe);
             if (!links.TryCreateHardLink(sourceExe, exe, out _)) throw new IOException("Fixture hard link failed");
@@ -156,11 +161,11 @@ internal static partial class Program
                 {
                     File.SetUnixFileMode(interrupted.RuntimePath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
                     await Reject("atomic promotion failure fails closed", () => preparation.PrepareAsync(source, interruptedRealm));
-                    Check("failed promotion keeps recoverable ownership and no launch target", Load(interrupted.RuntimePath).RealmExecutable is not null && !File.Exists(Executable(interrupted.RuntimePath)));
+                    Check("failed promotion keeps recoverable ownership and no launch target", Load(interrupted.RuntimePath).RealmExecutable is null && File.Exists(Path.Combine(interrupted.RuntimePath, RealmExecutableService.PendingRelativePath)));
                     Check("only owned temporary file cleaned after failure", !Directory.EnumerateFiles(Path.Combine(interrupted.RuntimePath, ".portalkeeper"), "realm-executable-*.tmp").Any());
                 }
                 finally { File.SetUnixFileMode(interrupted.RuntimePath, mode); }
-                Check("interrupted generation retries in place", await preparation.PrepareAsync(source, interruptedRealm) == interrupted.RuntimePath && Hash(Executable(interrupted.RuntimePath)) == Hash(sourceExe));
+                Check("interrupted generation retries in place", await preparation.PrepareAsync(source, interruptedRealm) == interrupted.RuntimePath && Hash(Executable(interrupted.RuntimePath)) == FrameXmlDigestOverrideRecipe.OutputSha256);
                 TestCheckpoint4Wine(root, source, runtime, realm, exe, Check);
             }
             else if (OperatingSystem.IsWindows())
