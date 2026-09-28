@@ -94,6 +94,7 @@ public sealed class PatchService
                     throw;
                 }
             }
+            ClearClientCache(root);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
     }
@@ -106,7 +107,26 @@ public sealed class PatchService
         ManagedRuntimeWriteGuard.Check(root, destination);
         Backup(root, destination);
         File.Delete(destination);
+        ClearClientCache(root);
         // Explicit removal retains the allocation so repair reuses the same slot.
+    }
+    // The client caches server data in Cache/WDB and keeps it across patch
+    // changes, so a new patch can show stale data until the cache is rebuilt.
+    // It is regenerated on the next login; clearing is best effort because the
+    // patch change itself has already succeeded.
+    public static void ClearClientCache(string root)
+    {
+        try
+        {
+            foreach (var directory in Directory.EnumerateDirectories(root))
+            {
+                if (!Path.GetFileName(directory).Equals("Cache", StringComparison.OrdinalIgnoreCase)) continue;
+                var cache = ManagedPath.Resolve(root, Path.GetFileName(directory));
+                ManagedRuntimeWriteGuard.Check(root, cache);
+                Directory.Delete(cache, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException) { }
     }
     private static void Backup(string root, string destination)
     {

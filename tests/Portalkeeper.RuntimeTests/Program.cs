@@ -32,6 +32,8 @@ internal static partial class Program
             return RunCheckpoint4().GetAwaiter().GetResult();
         if (args.Length > 0 && args[0] == "checkpoint6")
             return RunCheckpoint6().GetAwaiter().GetResult();
+        if (args.Length > 0 && args[0] == "patch-cache")
+            return RunPatchCache().GetAwaiter().GetResult();
         return RunBattery();
     }
 
