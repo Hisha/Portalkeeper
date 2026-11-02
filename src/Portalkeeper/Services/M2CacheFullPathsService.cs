@@ -72,7 +72,7 @@ public static class M2CacheFullPathsService
         if (edited is null) return false;
 
         try { ClientExecutableEdit.Replace(root, executable, original, edited); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException) { return false; }
         return true;
     }
 

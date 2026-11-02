@@ -42,7 +42,7 @@ internal static partial class Program
             && File.ReadAllBytes(exe).AsSpan().SequenceEqual(all) && M2CacheFullPathsService.IsSetUp(exe) && LiveBagSlotsService.IsSetUp(exe));
 
         // A folder it can't write to leaves the client as it is, and doesn't stop the launch.
-        if (!OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows() && Environment.UserName != "root") // root ignores the folder's mode
         {
             File.WriteAllBytes(exe, stock);
             var mode = File.GetUnixFileMode(client);
