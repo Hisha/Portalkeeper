@@ -11,7 +11,7 @@ internal static partial class Program
     /// <summary>A PE32 stand-in for Wow.exe with .text where build 12340 has it, stock bytes at every place.</summary>
     private static byte[] GuildBankStandInClient(uint textRaw = 0x400, uint imageBase = 0x400000)
     {
-        const int textSize = 0x310000; // up to the live bag sizes' places too
+        const int textSize = 0x420000; // up to the live bag sizes' and the model cache's places too
         var bytes = new byte[textRaw + textSize];
         new Random(98).NextBytes(bytes.AsSpan((int)textRaw, textSize));
         void U16(int at, int value) => BitConverter.GetBytes((ushort)value).CopyTo(bytes, at);
@@ -47,9 +47,12 @@ internal static partial class Program
         U32(text + 36, 0x60000020);
         foreach (var place in GuildBankSlotsService.Places)
             if (place.Offset + place.StockBytes.Length <= bytes.Length) place.StockBytes.CopyTo(bytes, place.Offset);
-        // The character limit's guard and the live bag sizes' places too, so the edits can be tried together.
+        // The character limit's guard, the live bag sizes' places and the model cache's too, so the edits
+        // can be tried together.
         Convert.FromHexString("807DFF0AC745F800000000760B").CopyTo(bytes, CharacterListLimitService.GuardOffset);
         foreach (var place in LiveBagSlotsService.Places) place.StockBytes.CopyTo(bytes, place.Offset);
+        if (M2CacheFullPathsService.Offset + M2CacheFullPathsService.StockBytes.Length <= bytes.Length)
+            M2CacheFullPathsService.StockBytes.CopyTo(bytes, M2CacheFullPathsService.Offset);
         return bytes;
     }
 
