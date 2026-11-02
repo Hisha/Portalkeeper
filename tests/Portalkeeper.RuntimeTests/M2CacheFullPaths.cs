@@ -41,6 +41,20 @@ internal static partial class Program
         check("m2 cache: with the character limit, guild bank and live bags, either order gives the same file", cacheLast && cacheFirst
             && File.ReadAllBytes(exe).AsSpan().SequenceEqual(all) && M2CacheFullPathsService.IsSetUp(exe) && LiveBagSlotsService.IsSetUp(exe));
 
+        // A folder it can't write to leaves the client as it is, and doesn't stop the launch.
+        if (!OperatingSystem.IsWindows() && Environment.UserName != "root") // root ignores the folder's mode
+        {
+            File.WriteAllBytes(exe, stock);
+            var mode = File.GetUnixFileMode(client);
+            File.SetUnixFileMode(client, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            try
+            {
+                check("m2 cache: a client it can't write is left alone", !M2CacheFullPathsService.TryEnsure(client, exe)
+                    && File.ReadAllBytes(exe).AsSpan().SequenceEqual(stock));
+            }
+            finally { File.SetUnixFileMode(client, mode); }
+        }
+
         // Anything else is refused by Ensure and IsSetUp, left alone by TryEnsure, and never changed.
         var foreign = Path.Combine(client, "Other.exe");
         bool Refused(byte[] bytes)

@@ -11,12 +11,12 @@ namespace Portalkeeper.Services;
 /// The same byte as wow-server's tools/client-patches/m2_cache_full_paths.py. Build 12340's model cache
 /// (0x81C390, .\M2Cache.cpp) is keyed by the file name without the folder unless the caller passes flag
 /// 0x10, so Creature\RidingRaptor\RidingRaptor.m2 and Creature\RetailLibrary\Ridingraptor\Ridingraptor.m2
-/// are one model to it: whichever loaded first is drawn for both until nothing uses it, wearing the other
-/// one's textures. <c>and eax, 10h</c> at 0x81C44A becomes <c>or eax, 10h</c>, so every lookup takes the
-/// full path branch the client already has.
+/// are one model to it: whichever loaded first is drawn for both for as long as it stays cached, wearing the
+/// other one's textures. <c>and eax, 10h</c> at 0x81C44A becomes <c>or eax, 10h</c>, so every lookup takes the
+/// full path branch (no direct caller passes 0x10, so it only runs once edited).
 ///
-/// Like the warband edit this one is optional: a stock client is safe on the realm and only draws those
-/// models wrong, so a Wow.exe it can't edit still launches.
+/// This edit is optional: a stock client is safe on the realm and only draws those models wrong, so a
+/// Wow.exe it can't edit or can't write still launches.
 /// The place has to hold its stock or its edited bytes, and the PE has to map it where build 12340 has it
 /// in .text; anything else is refused and the file is left as it was.
 /// </summary>
@@ -60,7 +60,8 @@ public static class M2CacheFullPathsService
     }
 
     /// <summary>
-    /// <see cref="Ensure"/>, except that a client it can't edit is left alone (false) rather than refused.
+    /// <see cref="Ensure"/>, except that a client it can't edit or can't write is left alone (false) rather
+    /// than refused, so an edit that's only cosmetic never keeps a player out of the game.
     /// </summary>
     public static bool TryEnsure(string root, string executable)
     {
@@ -70,7 +71,8 @@ public static class M2CacheFullPathsService
         catch (InvalidDataException) { return false; }
         if (edited is null) return false;
 
-        ClientExecutableEdit.Replace(root, executable, original, edited);
+        try { ClientExecutableEdit.Replace(root, executable, original, edited); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException) { return false; }
         return true;
     }
 
