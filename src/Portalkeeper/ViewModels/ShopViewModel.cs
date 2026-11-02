@@ -73,6 +73,8 @@ public sealed class ShopViewModel : ViewModelBase, IDisposable
     public ObservableCollection<ShopCharacterView> Characters { get; } = [];
     public ObservableCollection<ShopCategoryView> Categories { get; } = [];
     public ObservableCollection<ShopOfferView> Offers { get; } = [];
+    /// <summary>The tiles as they're drawn: <see cref="Offers"/> under their headings, the way the realm lists them.</summary>
+    public ObservableCollection<ShopOfferSection> OfferSections { get; } = [];
     public IReadOnlyList<ShopSortView> Sorts => ShopSortView.Choices;
     public IReadOnlyList<ShopShowView> Shows => ShopShowView.Choices;
 
@@ -499,14 +501,28 @@ public sealed class ShopViewModel : ViewModelBase, IDisposable
         var shown = _allOffers.Where(o => key is null || o.Offer.Category == key);
         if (search.Length > 0)
             shown = shown.Where(o => o.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)
-                || o.Description.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+                || o.Description.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                || o.Offer.Section.Contains(search, StringComparison.CurrentCultureIgnoreCase));
         shown = _selectedShow.Apply(shown);
         foreach (var offer in _selectedSort.Apply(shown)) Offers.Add(offer);
+        UpdateOfferSections();
         OnPropertyChanged(nameof(HasNoOffers));
         OnPropertyChanged(nameof(NoOffersText));
         // The stage shows something of this tab: the offer it showed if that's here (after a refresh
         // it's a new tile for the same offer, and its picture stays up), else the first tile.
         SelectedOffer = Offers.FirstOrDefault(o => o.Offer.Id == _selectedOffer?.Offer.Id) ?? Offers.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The Sort choice orders the tiles inside a heading; the headings themselves stay in the realm's
+    /// order (the first offer of each in the listing), so the years don't shuffle with the prices.
+    /// </summary>
+    private void UpdateOfferSections()
+    {
+        OfferSections.Clear();
+        var order = _allOffers.Select(o => o.Offer.Section).Distinct().ToList();
+        foreach (var group in Offers.GroupBy(o => o.Offer.Section).OrderBy(g => order.IndexOf(g.Key)))
+            OfferSections.Add(new ShopOfferSection(group.Key, group.ToList()));
     }
 
     private void UpdateOfferStates()
@@ -565,6 +581,14 @@ public sealed class ShopCharacterView(ShopCharacter character)
     public IBrush ClassBrush { get; } = ArmoryNames.ClassBrush(character.Class);
 }
 
+/// <summary>Tiles under a heading (a BlizzCon's year). Without a title there's no heading, only the tiles.</summary>
+public sealed class ShopOfferSection(string title, IReadOnlyList<ShopOfferView> offers)
+{
+    public string Title { get; } = title;
+    public bool HasTitle => Title.Length > 0;
+    public IReadOnlyList<ShopOfferView> Offers { get; } = offers;
+}
+
 /// <summary>A filter tab: one offer category.</summary>
 public sealed class ShopCategoryView(string key, int count) : ViewModelBase
 {
@@ -578,13 +602,15 @@ public sealed class ShopCategoryView(string key, int count) : ViewModelBase
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
 
     /// <summary>The known categories first, in the order the shop is meant to be read.</summary>
-    public static int Order(string key) => key switch { "mount" => 0, "pet" => 1, "service" => 2, _ => 3 };
+    public static int Order(string key) => key switch { "mount" => 0, "pet" => 1, "blizzcon" => 2, "recruit" => 3, "service" => 4, _ => 5 };
 
     public static string TitleOf(string key) => key switch
     {
         "mount" => "MOUNTS",
         "pet" => "COMPANIONS",
         "service" => "SERVICES",
+        "blizzcon" => "BLIZZCON",
+        "recruit" => "RECRUIT-A-FRIEND",
         "" => "OTHER",
         _ => key.ToUpperInvariant(),
     };

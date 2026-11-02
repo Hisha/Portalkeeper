@@ -18,7 +18,12 @@ internal static partial class Program
                    {"id":101,"category":"pet","name":"Red Panda","description":"A companion.","icon":"","price":10,"owned":[],"cannot":[],"preview":{"url":"file:///etc/passwd","frames":36}},
                    {"id":201,"category":"mount","name":"Great Red Panda","description":"A mount.","icon":"","price":40,"owned":[],"cannot":[9],"preview":{"url":"https://portal.test/realm/shop/201.webp?v=5","frames":36}},
                    {"id":202,"category":"mount","name":"Ashen Steed","description":"A horse.","icon":"","price":30,"account":true,"owned":[],"cannot":[]},
-                   {"id":301,"category":"Toy","name":"Odd Thing","description":"","icon":"","price":50,"owned":[],"cannot":[]}],
+                   {"id":301,"category":"Toy","name":"Odd Thing","description":"","icon":"","price":50,"owned":[],"cannot":[]},
+                   {"id":401,"category":"blizzcon","section":"BlizzCon 2005","name":"Murky","description":"A murloc.","icon":"","price":100,"owned":[],"cannot":[]},
+                   {"id":402,"category":"blizzcon","section":"BlizzCon 2008","name":"Big Blizzard Bear","description":"A bear.","icon":"","price":250,"owned":[],"cannot":[]},
+                   {"id":403,"category":"blizzcon","section":"BlizzCon 2008","name":"Another Bear","description":"A bear.","icon":"","price":5,"owned":[],"cannot":[]},
+                   {"id":404,"category":"blizzcon","section":"BlizzCon 2026","name":"Rabbit'ath","description":"A rabbit.","icon":"","price":1,"owned":[],"cannot":[]},
+                   {"id":501,"category":"recruit","section":"Recruit-A-Friend 2008","name":"Swift Zhevra","description":"A zhevra.","icon":"","price":0,"owned":[],"cannot":[]}],
          "cached_at":1760000000}
         """;
 
@@ -35,7 +40,7 @@ internal static partial class Program
         var portal = new FakeShopPortal();
         var listing = await Service(portal).GetListingAsync(session);
         check("the shop listing is read: balance, characters, offers",
-            listing is { Balance: 45, Characters.Count: 2, Offers.Count: 5 }
+            listing is { Balance: 45, Characters.Count: 2, Offers.Count: 10 }
             && listing.Characters[1] is { Guid: 9, Name: "Bronn", Race: 3, Class: 1, Level: 12, Online: true }
             && listing.Offers[2] is { Id: 201, Category: "mount", Price: 40, Account: false }
             && listing.Offers[3] is { Id: 202, Account: true }
@@ -43,6 +48,29 @@ internal static partial class Program
             && listing.CachedAt == DateTimeOffset.FromUnixTimeSeconds(1760000000));
         check("the listing is asked for with the launcher login", portal.Authorized == 1 && portal.Unauthorized == 0);
         check("an unknown category is kept, lower-cased", listing?.Offers[4].Category == "toy");
+        check("an offer's section is read, and an offer without one has none",
+            listing?.Offers[5].Section == "BlizzCon 2005" && listing?.Offers[0].Section == "");
+
+        // BLIZZCON: a heading per section, in the realm's order whatever the sort does inside them.
+        {
+            using var sections = Shop(new FakeShopPortal());
+            await sections.LoadAsync();
+            sections.SelectedCategory = sections.Categories.First(c => c.Key == "blizzcon");
+            string Shape() => string.Join("; ", sections.OfferSections.Select(s => s.Title + ": " + string.Join(",", s.Offers.Select(o => o.Offer.Id))));
+            check("a tab's offers are listed under their sections, in the realm's order",
+                Shape() == "BlizzCon 2005: 401; BlizzCon 2008: 402,403; BlizzCon 2026: 404");
+            check("the BLIZZCON and RECRUIT-A-FRIEND tabs come before SERVICES",
+                string.Join(",", sections.Categories.Select(c => c.Title).Take(5)) == "MOUNTS,COMPANIONS,BLIZZCON,RECRUIT-A-FRIEND,SERVICES");
+            sections.SelectedSort = sections.Sorts.First(s => s.Key == "price-asc");
+            check("a sort orders the tiles inside a section and leaves the sections in order",
+                Shape() == "BlizzCon 2005: 401; BlizzCon 2008: 403,402; BlizzCon 2026: 404");
+            sections.SearchText = "2008";
+            check("searching a year keeps that year's section", Shape() == "BlizzCon 2008: 403,402");
+            sections.ClearFilters();
+            sections.SelectedCategory = sections.Categories.First(c => c.Key == "mount");
+            check("a tab without sections has one group and no heading",
+                sections.OfferSections.Count == 1 && !sections.OfferSections[0].HasTitle && sections.OfferSections[0].Offers.Count == 2);
+        }
         check("an offer's turntable picture is read",
             listing?.Offers[2].Preview is { Frames: 36 } preview && preview.Url.AbsoluteUri == "https://portal.test/realm/shop/201.webp?v=5");
         check("a picture that isn't http(s) is left out, and offers without one have none",
@@ -145,8 +173,8 @@ internal static partial class Program
         {
             await shop.LoadAsync();
             check("the shop opens on the online character", shop.SelectedCharacter?.Name == "Bronn" && shop.Balance == 45);
-            check("categories: mounts, companions, services, then the rest, and no ALL tab",
-                string.Join(",", shop.Categories.Select(c => c.Title)) == "MOUNTS,COMPANIONS,SERVICES,TOY");
+            check("categories: mounts, companions, the events, services, then the rest, and no ALL tab",
+                string.Join(",", shop.Categories.Select(c => c.Title)) == "MOUNTS,COMPANIONS,BLIZZCON,RECRUIT-A-FRIEND,SERVICES,TOY");
             check("the shop opens on the mounts tab", shop.SelectedCategory?.Key == "mount" && shop.Offers.Count == 2 && shop.Offers[0].Offer.Id == 201);
             // An account-wide offer (a mount the realm shares): bought for the account, not the picked character.
             check("an account-wide offer says so, and still needs the coins", Card(202) is { IsAccount: true, CanBuy: true, HasState: false } && !Card(201).IsAccount);
