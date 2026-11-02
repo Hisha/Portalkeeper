@@ -65,6 +65,7 @@ internal static partial class Program
             WarbandSelectChecks(root, Check);
             GuildBankSlotsChecks(root, Check);
             LiveBagSlotsChecks(root, Check);
+            M2CacheFullPathsChecks(root, Check);
             await CharacterOrderChecks(root, Check);
 
             // Saved login.

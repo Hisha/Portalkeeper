@@ -40,6 +40,8 @@ internal static partial class Program
             return RunGuildBankExe(args);
         if (args.Length > 0 && args[0] == "live-bag-exe")
             return RunLiveBagExe(args);
+        if (args.Length > 0 && args[0] == "m2-cache-exe")
+            return RunM2CacheExe(args);
         if (args.Length > 0 && args[0] == "patch-cache")
             return RunPatchCache().GetAwaiter().GetResult();
         return RunBattery();
