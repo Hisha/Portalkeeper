@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <!-- The release's version: the only one to change. The launcher reads InformationalVersion as its
          own (update checks, MinimumVersion), so the others follow it. -->
-    <Version>0.5.55</Version>
+    <Version>0.5.56</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
     <InformationalVersion>$(Version)</InformationalVersion>

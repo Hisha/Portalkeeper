@@ -66,6 +66,7 @@ internal static partial class Program
             GuildBankSlotsChecks(root, Check);
             LiveBagSlotsChecks(root, Check);
             M2CacheFullPathsChecks(root, Check);
+            MoonPhasesChecks(root, Check);
             await CharacterOrderChecks(root, Check);
 
             // Saved login.

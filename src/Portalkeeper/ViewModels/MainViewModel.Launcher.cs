@@ -841,8 +841,8 @@ public sealed partial class MainViewModel
     /// tab hold 196 items; a stock client on a realm with bigger tabs writes past its array, so like the
     /// limit it is required. Every client of the built-in realm needs both, whatever the realm lists.
     /// LiveBagSlotsService lets a bag's new size (Deep Pockets) show without a relog, and
-    /// M2CacheFullPathsService keeps two models with the same file name apart; both optional, like the
-    /// warband edit.
+    /// M2CacheFullPathsService keeps two models with the same file name apart, and MoonPhasesService gives
+    /// the moons their phases and real nights; all optional, like the warband edit.
     /// Returns true when the
     /// client is set up (or isn't the built-in realm's), false when it isn't yet; the same rules as
     /// <see cref="PrepareLongPatchNamesAsync"/>: only a client known to be the realm's, never under a
@@ -860,7 +860,7 @@ public sealed partial class MainViewModel
                 ?? throw new FileNotFoundException("Wow.exe was not found in the client folder.");
             if (await Task.Run(() => CharacterListLimitService.IsSetUp(executable) && GuildBankSlotsService.IsSetUp(executable)
                 && WarbandSelectService.IsSetUpOrRefused(executable) && LiveBagSlotsService.IsSetUpOrRefused(executable)
-                && M2CacheFullPathsService.IsSetUpOrRefused(executable)))
+                && M2CacheFullPathsService.IsSetUpOrRefused(executable) && MoonPhasesService.IsSetUpOrRefused(executable)))
                 return true;
             if (IsGameRunning || _isInstallingClient) return false;
             if (_clientCheck != ClientCheck.Ok && !ClientConformanceService.IsRealmInstall(root)) return false;
@@ -872,6 +872,7 @@ public sealed partial class MainViewModel
                 WarbandSelectService.TryEnsure(root, executable);
                 LiveBagSlotsService.TryEnsure(root, executable);
                 M2CacheFullPathsService.TryEnsure(root, executable);
+                MoonPhasesService.TryEnsure(root, executable);
             });
             return true;
         }
